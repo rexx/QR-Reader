@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ScanResult, AnalysisResponse } from './types';
 import QRScanner from './components/QRScanner';
@@ -13,6 +12,16 @@ const App: React.FC = () => {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+
+  const handleTabChange = (tab: 'scanner' | 'history') => {
+    setActiveTab(tab);
+    if (tab === 'history') {
+      setIsScanning(false);
+      setSearchQuery('');
+    } else if (!selectedResult) {
+      setIsScanning(true);
+    }
+  };
 
   const handleScan = useCallback((data: string) => {
     if (data === lastScanned) return;
@@ -50,7 +59,7 @@ const App: React.FC = () => {
     const analysis = await analyzeQRContent(scan.data);
     
     setScans(prev => {
-        const updated = prev.map(s => s.id === scanId ? { ...s, isAnalyzing: false, aiAnalysis: JSON.stringify(analysis) } : s);
+        const updated = prev.map(s => s.id === scanId ? { ...s, isAnalyzing: false, aiAnalysis: analysis ? JSON.stringify(analysis) : undefined } : s);
         const updatedSelected = updated.find(s => s.id === scanId);
         if (updatedSelected) setSelectedResult(updatedSelected);
         return updated;
@@ -59,10 +68,8 @@ const App: React.FC = () => {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert('Copied to clipboard!');
   };
 
-  // Filter scans based on search query
   const filteredScans = useMemo(() => {
     if (!searchQuery.trim()) return scans;
     const query = searchQuery.toLowerCase();
@@ -74,173 +81,205 @@ const App: React.FC = () => {
 
   const renderAnalysis = (result: ScanResult) => {
     if (!result.aiAnalysis) return null;
-    const analysis: AnalysisResponse = JSON.parse(result.aiAnalysis);
+    
+    try {
+      const analysis: AnalysisResponse = JSON.parse(result.aiAnalysis);
+      if (!analysis) return null;
 
-    const safetyColor = analysis.safetyRating === 'Safe' ? 'text-green-400' : 
-                        analysis.safetyRating === 'Warning' ? 'text-yellow-400' : 'text-red-400';
+      const safetyColor = analysis.safetyRating === 'Safe' ? 'text-green-400' : 
+                          analysis.safetyRating === 'Warning' ? 'text-yellow-400' : 'text-red-400';
 
-    return (
-      <div className="mt-4 p-4 rounded-xl bg-slate-800/50 border border-slate-700">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-bold uppercase tracking-widest text-sky-400">AI Analysis</span>
-          <span className={`text-xs font-bold px-2 py-0.5 rounded bg-slate-900 ${safetyColor}`}>
-            {analysis.safetyRating}
-          </span>
+      return (
+        <div className="mt-4 p-4 rounded-xl bg-slate-900/60 border border-slate-700/50 backdrop-blur-md">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-sky-400 bg-sky-400/10 px-2 py-0.5 rounded">AI 智慧分析</span>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded bg-slate-900 ${safetyColor} border border-white/5`}>
+              {analysis.safetyRating === 'Safe' ? '安全 (Safe)' : analysis.safetyRating === 'Warning' ? '警告 (Warning)' : '危險 (Dangerous)'}
+            </span>
+          </div>
+          <p className="text-sm text-slate-300 mb-4 leading-relaxed font-medium">{analysis.summary}</p>
+          <div className="flex flex-wrap gap-2">
+            {analysis.actions.map((action, idx) => (
+              <button
+                key={idx}
+                className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-all flex items-center gap-2 shadow-lg shadow-sky-600/10 active:scale-95"
+                onClick={() => {
+                  if (action.toLowerCase().includes('open') && result.data.startsWith('http')) {
+                    window.open(result.data, '_blank');
+                  } else {
+                    copyToClipboard(result.data);
+                  }
+                }}
+              >
+                {action.toLowerCase().includes('open') ? <i className="fas fa-external-link-alt text-[10px]"></i> : <i className="far fa-copy text-[10px]"></i>}
+                {action}
+              </button>
+            ))}
+          </div>
         </div>
-        <p className="text-sm text-slate-300 mb-3">{analysis.summary}</p>
-        <div className="flex flex-wrap gap-2">
-          {analysis.actions.map((action, idx) => (
-            <button
-              key={idx}
-              className="px-3 py-1 rounded-full bg-sky-600 hover:bg-sky-500 text-xs font-medium transition-colors"
-              onClick={() => {
-                if (action.toLowerCase().includes('open') && result.data.startsWith('http')) {
-                  window.open(result.data, '_blank');
-                } else {
-                  copyToClipboard(result.data);
-                }
-              }}
-            >
-              {action}
-            </button>
-          ))}
-        </div>
-      </div>
-    );
+      );
+    } catch (e) {
+      console.error("Failed to parse stored analysis", e);
+      return null;
+    }
   };
 
   return (
-    <div className="min-h-screen max-w-md mx-auto flex flex-col bg-slate-900 text-slate-100 shadow-2xl relative border-x border-slate-800">
-      {/* Header */}
-      <header className="p-6 pb-2">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-sky-500 flex items-center justify-center shadow-lg shadow-sky-500/20">
-            <i className="fas fa-qrcode text-xl text-white"></i>
-          </div>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight">Gemini Lens</h1>
-            <p className="text-xs text-slate-400 font-medium">SMART QR READER</p>
+    <div className="min-h-screen max-w-md mx-auto flex flex-col bg-slate-950 text-slate-100 shadow-2xl relative border-x border-slate-800">
+      <header className="p-6 pb-2 border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-md sticky top-0 z-30">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center shadow-lg shadow-sky-500/20">
+              <i className="fas fa-qrcode text-xl text-white"></i>
+            </div>
+            <div>
+              <h1 className="text-xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">Gemini Lens</h1>
+              <div className="flex items-center gap-1.5">
+                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em]">智能掃描器 (Smart Reader)</p>
+                {isScanning && activeTab === 'scanner' && (
+                  <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto px-6 pt-4 pb-24">
+      <main className="flex-1 overflow-y-auto px-6 pt-6 pb-28">
         {activeTab === 'scanner' ? (
-          <div className="space-y-6">
-            {!selectedResult || isScanning ? (
-              <div className="animate-in fade-in duration-500">
+          <div className="space-y-8">
+            {!selectedResult ? (
+              <div className="animate-in fade-in zoom-in-95 duration-500">
                 <QRScanner isActive={isScanning} onScan={handleScan} />
-                <div className="mt-8 text-center space-y-2">
-                  <h3 className="text-lg font-semibold">Ready to Scan</h3>
-                  <p className="text-sm text-slate-400">Point your camera at a QR code to decode its contents instantly.</p>
+                <div className="mt-8 text-center space-y-6">
+                  <div>
+                    <h3 className="text-lg font-bold">{isScanning ? '正在掃描...' : '已暫停'}</h3>
+                    <p className="text-xs text-slate-400 max-w-[280px] mx-auto mt-2 leading-relaxed">
+                      {isScanning 
+                        ? '請將鏡頭對準 QR Code，我們將自動為您辨識並分析內容。' 
+                        : '相機已關閉以節省電量並保護隱私。'}
+                    </p>
+                  </div>
+                  
+                  <button 
+                    onClick={() => setIsScanning(!isScanning)}
+                    className={`py-3.5 px-8 rounded-2xl font-black text-sm transition-all flex items-center gap-3 mx-auto active:scale-95 ${
+                      isScanning 
+                        ? 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700' 
+                        : 'bg-sky-500 text-white hover:bg-sky-400 shadow-xl shadow-sky-500/30'
+                    }`}
+                  >
+                    <i className={`fas ${isScanning ? 'fa-pause' : 'fa-video'}`}></i>
+                    {isScanning ? '停止鏡頭' : '開啟鏡頭'}
+                  </button>
                 </div>
               </div>
             ) : (
-              <div className="space-y-6 animate-in slide-in-from-bottom duration-300">
-                <div className="p-5 rounded-2xl bg-slate-800 border border-slate-700 shadow-xl">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex-1 mr-4">
-                      {isEditingName ? (
-                        <div className="flex items-center gap-2">
-                          <input
-                            autoFocus
-                            type="text"
-                            value={editNameValue}
-                            onChange={(e) => setEditNameValue(e.target.value)}
-                            onBlur={() => handleUpdateName(selectedResult.id, editNameValue)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleUpdateName(selectedResult.id, editNameValue)}
-                            className="bg-slate-900 border border-sky-500/50 rounded px-2 py-1 text-sm w-full outline-none text-white focus:ring-1 focus:ring-sky-500"
-                            placeholder="Enter record name..."
-                          />
-                        </div>
-                      ) : (
-                        <div 
-                          className="flex items-center gap-2 cursor-pointer group"
-                          onClick={() => {
-                            setIsEditingName(true);
-                            setEditNameValue(selectedResult.name || '');
-                          }}
-                        >
-                          <h2 className="text-sm font-bold text-slate-100 truncate">
-                            {selectedResult.name || 'Unnamed Record'}
-                          </h2>
-                          <i className="fas fa-pencil-alt text-[10px] text-slate-500 group-hover:text-sky-400 transition-colors"></i>
-                        </div>
-                      )}
-                      <span className="text-[10px] font-bold uppercase text-slate-500 block mt-0.5">Scan Result</span>
-                    </div>
-                    <button 
-                      onClick={() => { setIsScanning(true); setLastScanned(null); setSelectedResult(null); }}
-                      className="text-sky-400 text-xs font-bold hover:underline whitespace-nowrap"
-                    >
-                      Scan Another
-                    </button>
-                  </div>
-                  
-                  <div className="p-4 rounded-xl bg-slate-900 border border-slate-700 break-all text-sm font-mono mb-4 text-sky-100">
-                    {selectedResult.data}
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => copyToClipboard(selectedResult.data)}
-                      className="flex-1 py-3 px-4 rounded-xl bg-slate-700 hover:bg-slate-600 transition-colors flex items-center justify-center gap-2 text-sm font-semibold"
-                    >
-                      <i className="far fa-copy"></i> Copy
-                    </button>
-                    {selectedResult.type === 'url' && (
+              <div className="space-y-6 animate-in slide-in-from-bottom-8 duration-500">
+                <div className="p-1 rounded-[2.5rem] bg-gradient-to-br from-sky-400/20 to-transparent">
+                  <div className="p-6 rounded-[2.3rem] bg-slate-900 border border-slate-800 shadow-2xl">
+                    <div className="flex justify-between items-start mb-6">
+                      <div className="flex-1 mr-4">
+                        {isEditingName ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              autoFocus
+                              type="text"
+                              value={editNameValue}
+                              onChange={(e) => setEditNameValue(e.target.value)}
+                              onBlur={() => handleUpdateName(selectedResult.id, editNameValue)}
+                              onKeyDown={(e) => e.key === 'Enter' && handleUpdateName(selectedResult.id, editNameValue)}
+                              className="bg-slate-950 border border-sky-500/50 rounded-lg px-3 py-2 text-sm w-full outline-none text-white focus:ring-2 focus:ring-sky-500/30"
+                              placeholder="輸入紀錄名稱..."
+                            />
+                          </div>
+                        ) : (
+                          <div 
+                            className="flex items-center gap-2 cursor-pointer group"
+                            onClick={() => {
+                              setIsEditingName(true);
+                              setEditNameValue(selectedResult.name || '');
+                            }}
+                          >
+                            <h2 className="text-base font-bold text-slate-100 truncate group-hover:text-sky-400 transition-colors">
+                              {selectedResult.name || '未命名紀錄'}
+                            </h2>
+                            <i className="fas fa-pencil-alt text-[10px] text-slate-600 group-hover:text-sky-400 transition-colors"></i>
+                          </div>
+                        )}
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mt-1">辨識結果 (Scan Result)</span>
+                      </div>
                       <button 
-                        onClick={() => window.open(selectedResult.data, '_blank')}
-                        className="flex-1 py-3 px-4 rounded-xl bg-slate-700 hover:bg-slate-600 transition-colors flex items-center justify-center gap-2 text-sm font-semibold"
+                        onClick={() => { setIsScanning(true); setLastScanned(null); setSelectedResult(null); }}
+                        className="text-sky-400 text-[10px] font-black hover:bg-sky-400/20 transition-colors whitespace-nowrap bg-sky-400/10 px-3 py-1.5 rounded-full uppercase tracking-widest border border-sky-400/20"
                       >
-                        <i className="fas fa-external-link-alt"></i> Open
+                        重新掃描
+                      </button>
+                    </div>
+                    
+                    <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800/50 break-all text-sm font-mono mb-6 text-sky-200/80 shadow-inner leading-relaxed">
+                      {selectedResult.data}
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button 
+                        onClick={() => copyToClipboard(selectedResult.data)}
+                        className="flex-1 py-3.5 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 transition-all flex items-center justify-center gap-2 text-xs font-bold border border-slate-700 active:scale-95"
+                      >
+                        <i className="far fa-copy text-sm"></i> 複製內容
+                      </button>
+                      {selectedResult.type === 'url' && (
+                        <button 
+                          onClick={() => window.open(selectedResult.data, '_blank')}
+                          className="flex-1 py-3.5 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 transition-all flex items-center justify-center gap-2 text-xs font-bold border border-slate-700 active:scale-95"
+                        >
+                          <i className="fas fa-external-link-alt text-sm"></i> 開啟連結
+                        </button>
+                      )}
+                    </div>
+
+                    {!selectedResult.aiAnalysis && (
+                      <button 
+                        onClick={() => handleAnalyze(selectedResult.id)}
+                        disabled={selectedResult.isAnalyzing}
+                        className="w-full mt-4 py-4 px-4 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 disabled:opacity-50 transition-all flex items-center justify-center gap-2 text-sm font-black shadow-xl shadow-sky-500/20 active:scale-[0.98]"
+                      >
+                        {selectedResult.isAnalyzing ? (
+                          <>
+                            <i className="fas fa-circle-notch animate-spin"></i> 正在分析內容...
+                          </>
+                        ) : (
+                          <>
+                            <i className="fas fa-robot"></i> Gemini 智能分析
+                          </>
+                        )}
                       </button>
                     )}
+
+                    {renderAnalysis(selectedResult)}
                   </div>
-
-                  {!selectedResult.aiAnalysis && (
-                    <button 
-                      onClick={() => handleAnalyze(selectedResult.id)}
-                      disabled={selectedResult.isAnalyzing}
-                      className="w-full mt-3 py-3 px-4 rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-50 transition-all flex items-center justify-center gap-2 text-sm font-bold shadow-lg shadow-sky-600/20"
-                    >
-                      {selectedResult.isAnalyzing ? (
-                        <>
-                          <i className="fas fa-circle-notch animate-spin"></i> Analyzing with AI...
-                        </>
-                      ) : (
-                        <>
-                          <i className="fas fa-robot"></i> Analyze with Gemini AI
-                        </>
-                      )}
-                    </button>
-                  )}
-
-                  {renderAnalysis(selectedResult)}
                 </div>
               </div>
             )}
           </div>
         ) : (
-          <div className="space-y-4 animate-in fade-in duration-300">
-            <div className="flex flex-col gap-4 px-2 mb-6">
-              <h2 className="text-lg font-bold">Recent Scans</h2>
+          <div className="space-y-6 animate-in fade-in duration-500">
+            <div className="flex flex-col gap-4 mb-2">
+              <h2 className="text-xl font-black">歷史紀錄 (History)</h2>
               
-              {/* Search Bar */}
-              <div className="relative">
-                <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
+              <div className="relative group">
+                <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm group-focus-within:text-sky-400 transition-colors"></i>
                 <input
                   type="text"
-                  placeholder="Search titles or content..."
+                  placeholder="搜尋標題或內容..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-2xl py-3 pl-11 pr-10 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500/50 transition-all"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-2xl py-3.5 pl-11 pr-10 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500/30 transition-all"
                 />
                 {searchQuery && (
                   <button 
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-300"
                   >
                     <i className="fas fa-times-circle"></i>
                   </button>
@@ -249,66 +288,71 @@ const App: React.FC = () => {
             </div>
 
             {scans.length === 0 ? (
-              <div className="text-center py-20 opacity-50">
-                <i className="fas fa-history text-4xl mb-4 text-slate-600"></i>
-                <p>No history yet.</p>
+              <div className="text-center py-24 bg-slate-900/40 rounded-[2.5rem] border border-dashed border-slate-800">
+                <div className="w-20 h-20 rounded-full bg-slate-900 flex items-center justify-center mx-auto mb-6 border border-slate-800 shadow-xl">
+                  <i className="fas fa-history text-3xl text-slate-700"></i>
+                </div>
+                <p className="text-sm font-bold text-slate-600 tracking-wide">目前還沒有任何掃描紀錄</p>
               </div>
             ) : filteredScans.length === 0 ? (
               <div className="text-center py-20 opacity-50">
-                <i className="fas fa-search text-4xl mb-4 text-slate-600"></i>
-                <p>No matching results found.</p>
+                <i className="fas fa-search text-4xl mb-4 text-slate-700"></i>
+                <p className="text-sm font-medium">找不到相符的結果</p>
               </div>
             ) : (
-              filteredScans.map((scan) => (
-                <div 
-                  key={scan.id} 
-                  onClick={() => { setSelectedResult(scan); setActiveTab('scanner'); setIsScanning(false); }}
-                  className="p-4 rounded-2xl bg-slate-800 border border-slate-700 hover:border-slate-500 transition-all cursor-pointer group mb-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${scan.type === 'url' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-amber-500/20 text-amber-400'}`}>
-                      <i className={scan.type === 'url' ? 'fas fa-link' : 'fas fa-font'}></i>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-slate-100 truncate">
-                        {scan.name || (scan.data.length > 30 ? scan.data.substring(0, 30) + '...' : scan.data)}
-                      </p>
-                      <p className="text-[10px] text-slate-500 truncate mt-0.5">
-                        {scan.name ? scan.data : new Date(scan.timestamp).toLocaleString()}
-                      </p>
-                      {scan.name && (
-                        <p className="text-[9px] text-slate-600 uppercase tracking-tighter mt-1">
-                          {new Date(scan.timestamp).toLocaleString()}
+              <div className="grid gap-3">
+                {filteredScans.map((scan) => (
+                  <div 
+                    key={scan.id} 
+                    onClick={() => { setSelectedResult(scan); setActiveTab('scanner'); setIsScanning(false); }}
+                    className="p-4 rounded-[1.5rem] bg-slate-900 border border-slate-800 hover:border-sky-500/30 hover:bg-slate-800/50 transition-all cursor-pointer group shadow-sm active:scale-[0.98]"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors ${scan.type === 'url' ? 'bg-indigo-500/10 text-indigo-400 group-hover:bg-indigo-500/20' : 'bg-amber-500/10 text-amber-400 group-hover:bg-amber-500/20'}`}>
+                        <i className={scan.type === 'url' ? 'fas fa-link text-lg' : 'fas fa-font text-lg'}></i>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-black text-slate-100 truncate">
+                          {scan.name || (scan.data.length > 30 ? scan.data.substring(0, 30) + '...' : scan.data)}
                         </p>
-                      )}
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">
+                          {new Date(scan.timestamp).toLocaleString('zh-TW', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {scan.aiAnalysis && <i className="fas fa-robot text-sky-400 text-[10px]"></i>}
+                        <i className="fas fa-chevron-right text-slate-700 group-hover:text-sky-400 transition-colors"></i>
+                      </div>
                     </div>
-                    <i className="fas fa-chevron-right text-slate-600 group-hover:text-slate-400 transition-colors"></i>
                   </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
         )}
       </main>
 
-      {/* Navigation Bar */}
-      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-slate-800/80 backdrop-blur-xl border-t border-slate-700/50 px-8 py-4 flex justify-around items-center z-50">
+      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-slate-950/80 backdrop-blur-2xl border-t border-slate-800/50 px-10 py-5 flex justify-around items-center z-50">
         <button 
-          onClick={() => { setActiveTab('scanner'); setSearchQuery(''); }}
-          className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'scanner' ? 'text-sky-400' : 'text-slate-500'}`}
+          onClick={() => handleTabChange('scanner')}
+          className={`flex flex-col items-center gap-1.5 transition-all group ${activeTab === 'scanner' ? 'text-sky-400' : 'text-slate-600 hover:text-slate-400'}`}
         >
-          <i className={`fas fa-camera text-xl ${activeTab === 'scanner' ? 'scale-110' : ''}`}></i>
-          <span className="text-[10px] font-bold uppercase tracking-widest">Scanner</span>
+          <div className={`w-12 h-8 flex items-center justify-center rounded-2xl transition-all ${activeTab === 'scanner' ? 'bg-sky-400/10' : ''}`}>
+            <i className={`fas fa-camera text-xl ${activeTab === 'scanner' ? 'scale-110' : ''}`}></i>
+          </div>
+          <span className="text-[9px] font-black uppercase tracking-[0.2em]">掃描 (Scan)</span>
         </button>
         <button 
-          onClick={() => setActiveTab('history')}
-          className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'history' ? 'text-sky-400' : 'text-slate-500'}`}
+          onClick={() => handleTabChange('history')}
+          className={`flex flex-col items-center gap-1.5 transition-all group ${activeTab === 'history' ? 'text-sky-400' : 'text-slate-600 hover:text-slate-400'}`}
         >
-          <div className="relative">
-            <i className={`fas fa-clock-rotate-left text-xl ${activeTab === 'history' ? 'scale-110' : ''}`}></i>
-            {scans.length > 0 && <div className="absolute -top-1 -right-1 w-2 h-2 bg-sky-500 rounded-full"></div>}
+          <div className={`w-12 h-8 flex items-center justify-center rounded-2xl transition-all ${activeTab === 'history' ? 'bg-sky-400/10' : ''}`}>
+            <div className="relative">
+              <i className={`fas fa-clock-rotate-left text-xl ${activeTab === 'history' ? 'scale-110' : ''}`}></i>
+              {scans.length > 0 && <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-sky-500 rounded-full border-2 border-slate-950"></div>}
+            </div>
           </div>
-          <span className="text-[10px] font-bold uppercase tracking-widest">History</span>
+          <span className="text-[9px] font-black uppercase tracking-[0.2em]">紀錄 (History)</span>
         </button>
       </nav>
     </div>

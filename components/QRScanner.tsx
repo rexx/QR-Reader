@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState } from 'react';
 import jsQR from 'jsqr';
 
@@ -10,79 +9,110 @@ interface QRScannerProps {
 const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const [error, setError] = useState<{title: string; message: string} | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-  // Ref to hold the animation frame ID for the scanning loop
-  const requestRef = useRef<number>();
+  const [hasTorch, setHasTorch] = useState(false);
+  const [isTorchOn, setIsTorchOn] = useState(false);
+  const requestRef = useRef<number | undefined>(undefined);
+  const streamRef = useRef<MediaStream | null>(null);
 
   const startCamera = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      // First try with environment facing mode
-      let stream: MediaStream;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' }
-        });
-      } catch (e) {
-        // Fallback to any available camera
-        console.warn("Environment camera failed, falling back to any camera", e);
-        stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      }
+      const constraints: MediaStreamConstraints = {
+        video: { facingMode: 'environment' }
+      };
+      
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      streamRef.current = stream;
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        // Important: catch play() errors which can happen if browser blocks auto-play
-        try {
-          await videoRef.current.play();
-          setHasPermission(true);
-        } catch (playError) {
-          console.error("Video play error:", playError);
-          setError({
-            title: "Playback Blocked",
-            message: "The browser blocked video playback. Please interact with the page and try again."
-          });
+        await videoRef.current.play();
+        
+        // Check for torch capability
+        const track = stream.getVideoTracks()[0];
+        const capabilities = track.getCapabilities() as any;
+        if (capabilities.torch) {
+          setHasTorch(true);
         }
       }
     } catch (err: any) {
       console.error("Camera access error:", err);
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        setError({
-          title: "Camera Access Denied",
-          message: "Please enable camera permissions in your browser settings to scan QR codes."
-        });
-        setHasPermission(false);
-      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-        setError({
-          title: "Camera Not Found",
-          message: "We couldn't find a camera on this device."
-        });
-      } else {
-        setError({
-          title: "Camera Error",
-          message: "An unexpected error occurred while accessing the camera."
-        });
-      }
+      setError({
+        title: "鏡頭存取失敗 (Camera Error)",
+        message: "請在瀏覽器設定中啟用相機權限以掃描 QR Code。"
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
   const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
-    if (requestRef.current) {
+    if (requestRef.current !== undefined) {
       cancelAnimationFrame(requestRef.current);
+      requestRef.current = undefined;
+    }
+    setIsTorchOn(false);
+  };
+
+  const toggleTorch = async () => {
+    if (!streamRef.current) return;
+    const track = streamRef.current.getVideoTracks()[0];
+    try {
+      const newTorchState = !isTorchOn;
+      await track.applyConstraints({
+        advanced: [{ torch: newTorchState }]
+      } as any);
+      setIsTorchOn(newTorchState);
+    } catch (e) {
+      console.error("Failed to toggle torch", e);
     }
   };
 
-  // The main scanning loop using requestAnimationFrame and jsQR
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        if (context) {
+          canvas.width = img.width;
+          canvas.height = img.height;
+          context.drawImage(img, 0, 0);
+          const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(imageData.data, imageData.width, imageData.height);
+          if (code) {
+            onScan(code.data);
+          } else {
+            alert("無法辨識該圖片中的 QR Code (Could not find QR Code in image)");
+          }
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+    // Reset input
+    e.target.value = '';
+  };
+
   const scan = () => {
+    if (!isActive) return;
+
     if (videoRef.current && canvasRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
       const canvas = canvasRef.current;
       const context = canvas.getContext('2d');
@@ -95,7 +125,10 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
           inversionAttempts: 'dontInvert',
         });
         if (code) {
+          // Provide haptic feedback if available
+          if (window.navigator.vibrate) window.navigator.vibrate(100);
           onScan(code.data);
+          return;
         }
       }
     }
@@ -113,56 +146,108 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
   }, [isActive]);
 
   return (
-    <div className="relative aspect-square overflow-hidden rounded-3xl bg-black border-4 border-slate-800 shadow-2xl">
+    <div className="relative aspect-square overflow-hidden rounded-3xl bg-slate-950 border-4 border-slate-800 shadow-2xl transition-all duration-500">
       <video
         ref={videoRef}
-        className="w-full h-full object-cover"
+        className={`w-full h-full object-cover transition-opacity duration-700 ${isActive && !isLoading ? 'opacity-100' : 'opacity-0'}`}
         playsInline
       />
       <canvas ref={canvasRef} className="hidden" />
       
+      {/* Hidden file input */}
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        onChange={handleFileUpload} 
+        accept="image/*" 
+        className="hidden" 
+      />
+
+      {/* Floating Controls */}
+      {isActive && !isLoading && !error && (
+        <div className="absolute top-4 right-4 flex flex-col gap-2 z-20">
+          {hasTorch && (
+            <button 
+              onClick={toggleTorch}
+              className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${isTorchOn ? 'bg-yellow-400 text-slate-900 shadow-[0_0_15px_rgba(250,204,21,0.5)]' : 'bg-black/50 text-white backdrop-blur-md'}`}
+            >
+              <i className={`fas ${isTorchOn ? 'fa-lightbulb' : 'fa-lightbulb'}`}></i>
+            </button>
+          )}
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            className="w-10 h-10 rounded-full bg-black/50 text-white backdrop-blur-md flex items-center justify-center hover:bg-black/70 transition-all"
+            title="Upload from Gallery"
+          >
+            <i className="fas fa-image"></i>
+          </button>
+        </div>
+      )}
+
+      {/* Standby View */}
+      {!isActive && !isLoading && !error && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/40 backdrop-blur-md">
+          <div className="w-20 h-20 rounded-full bg-slate-800/80 flex items-center justify-center mb-4 border border-slate-700">
+            <i className="fas fa-video-slash text-slate-500 text-2xl"></i>
+          </div>
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">鏡頭已關閉 (Camera Off)</p>
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            className="mt-6 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-full text-[10px] font-bold uppercase tracking-widest text-slate-300 transition-all border border-slate-700"
+          >
+            從相簿選取 (Upload Image)
+          </button>
+        </div>
+      )}
+
       {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <i className="fas fa-circle-notch animate-spin text-sky-400 text-3xl"></i>
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/50 backdrop-blur-sm">
+          <i className="fas fa-circle-notch animate-spin text-sky-400 text-3xl mb-4"></i>
+          <p className="text-[10px] font-bold text-sky-400/70 uppercase tracking-widest">啟動中 (Initializing...)</p>
         </div>
       )}
 
       {error && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-slate-900/90 backdrop-blur-md">
-          <i className="fas fa-exclamation-triangle text-amber-500 text-3xl mb-3"></i>
+        <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-slate-900/90 backdrop-blur-md z-10">
+          <div className="w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center mb-4">
+             <i className="fas fa-exclamation-triangle text-amber-500 text-2xl"></i>
+          </div>
           <h4 className="font-bold text-white mb-1">{error.title}</h4>
-          <p className="text-xs text-slate-400">{error.message}</p>
+          <p className="text-xs text-slate-400 leading-relaxed max-w-[200px]">{error.message}</p>
         </div>
       )}
 
-      {/* Scanner Overlay UI */}
-      {!error && !isLoading && (
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute inset-0 border-[40px] border-black/40"></div>
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 border-2 border-sky-400/50 rounded-2xl">
-             <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-sky-400 rounded-tl-lg"></div>
-             <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-sky-400 rounded-tr-lg"></div>
-             <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-sky-400 rounded-bl-lg"></div>
-             <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-sky-400 rounded-br-lg"></div>
+      {isActive && !error && !isLoading && (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute inset-0 border-[40px] border-black/30"></div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-52 h-52 border-2 border-sky-400/30 rounded-3xl">
+             <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-sky-400 rounded-tl-xl"></div>
+             <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-sky-400 rounded-tr-xl"></div>
+             <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-sky-400 rounded-bl-xl"></div>
+             <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-sky-400 rounded-br-xl"></div>
              
-             {/* Scanning Animation Line */}
-             <div className="absolute top-0 left-0 w-full h-0.5 bg-sky-400 shadow-[0_0_15px_rgba(56,189,248,0.8)] animate-scan-move"></div>
+             <div className="absolute top-0 left-0 w-full h-0.5 bg-sky-400/80 shadow-[0_0_15px_rgba(56,189,248,0.6)] animate-scan-move"></div>
+          </div>
+          
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-3 py-1 bg-black/40 backdrop-blur-md rounded-full border border-white/10">
+            <p className="text-[8px] font-bold text-sky-400 uppercase tracking-[0.2em] whitespace-nowrap">掃描中 (Live Scanning)</p>
           </div>
         </div>
       )}
 
       <style>{`
         @keyframes scan-move {
-          0% { top: 0; }
-          100% { top: 100%; }
+          0% { top: 0; opacity: 0.2; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { top: 100%; opacity: 0.2; }
         }
         .animate-scan-move {
-          animation: scan-move 2.5s ease-in-out infinite alternate;
+          animation: scan-move 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
         }
       `}</style>
     </div>
   );
 };
 
-// Fix for: Error in file App.tsx on line 4: Module '"file:///components/QRScanner"' has no default export.
 export default QRScanner;

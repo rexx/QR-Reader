@@ -1,10 +1,11 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const analyzeQRContent = async (content: string) => {
-  const response = await ai.models.generateContent({
+  // Use generateContent for text analysis task
+  const response: GenerateContentResponse = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: `Analyze the following content from a QR code and provide a professional summary. 
     Content: "${content}"
@@ -35,7 +36,10 @@ export const analyzeQRContent = async (content: string) => {
   });
 
   try {
-    return JSON.parse(response.text.trim());
+    // Access .text property directly and handle potential undefined values
+    const jsonStr = (response.text || "").trim();
+    if (!jsonStr) return null;
+    return JSON.parse(jsonStr);
   } catch (error) {
     console.error("Failed to parse Gemini response", error);
     return null;
