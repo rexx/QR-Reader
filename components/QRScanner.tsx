@@ -271,10 +271,6 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
              
              <div className="absolute top-0 left-0 w-full h-0.5 bg-sky-400/80 shadow-[0_0_15px_rgba(56,189,248,0.6)] animate-scan-move"></div>
           </div>
-          
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-3 py-1 bg-black/40 backdrop-blur-md rounded-full border border-white/10">
-            <p className="text-[8px] font-bold text-sky-400 uppercase tracking-[0.2em] whitespace-nowrap">Live Scanning</p>
-          </div>
         </div>
       )}
 
