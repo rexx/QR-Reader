@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ScanResult, AnalysisResponse } from './types';
 import QRScanner from './components/QRScanner';
@@ -92,9 +93,9 @@ const App: React.FC = () => {
       return (
         <div className="mt-4 p-4 rounded-xl bg-slate-900/60 border border-slate-700/50 backdrop-blur-md">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-sky-400 bg-sky-400/10 px-2 py-0.5 rounded">AI 智慧分析</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-sky-400 bg-sky-400/10 px-2 py-0.5 rounded">AI Analysis</span>
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded bg-slate-900 ${safetyColor} border border-white/5`}>
-              {analysis.safetyRating === 'Safe' ? '安全 (Safe)' : analysis.safetyRating === 'Warning' ? '警告 (Warning)' : '危險 (Dangerous)'}
+              {analysis.safetyRating === 'Safe' ? 'Safe' : analysis.safetyRating === 'Warning' ? 'Warning' : 'Dangerous'}
             </span>
           </div>
           <p className="text-sm text-slate-300 mb-4 leading-relaxed font-medium">{analysis.summary}</p>
@@ -135,7 +136,7 @@ const App: React.FC = () => {
             <div>
               <h1 className="text-xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">Gemini Lens</h1>
               <div className="flex items-center gap-1.5">
-                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em]">智能掃描器 (Smart Reader)</p>
+                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em]">Smart Reader</p>
                 {isScanning && activeTab === 'scanner' && (
                   <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                 )}
@@ -153,11 +154,11 @@ const App: React.FC = () => {
                 <QRScanner isActive={isScanning} onScan={handleScan} />
                 <div className="mt-8 text-center space-y-6">
                   <div>
-                    <h3 className="text-lg font-bold">{isScanning ? '正在掃描...' : '已暫停'}</h3>
+                    <h3 className="text-lg font-bold">{isScanning ? 'Scanning...' : 'Paused'}</h3>
                     <p className="text-xs text-slate-400 max-w-[280px] mx-auto mt-2 leading-relaxed">
                       {isScanning 
-                        ? '請將鏡頭對準 QR Code，我們將自動為您辨識並分析內容。' 
-                        : '相機已關閉以節省電量並保護隱私。'}
+                        ? 'Point the camera at a QR code for automatic recognition and analysis.' 
+                        : 'Camera is currently off to save battery and ensure privacy.'}
                     </p>
                   </div>
                   
@@ -170,7 +171,7 @@ const App: React.FC = () => {
                     }`}
                   >
                     <i className={`fas ${isScanning ? 'fa-pause' : 'fa-video'}`}></i>
-                    {isScanning ? '停止鏡頭' : '開啟鏡頭'}
+                    {isScanning ? 'Stop Camera' : 'Start Camera'}
                   </button>
                 </div>
               </div>
@@ -190,7 +191,7 @@ const App: React.FC = () => {
                               onBlur={() => handleUpdateName(selectedResult.id, editNameValue)}
                               onKeyDown={(e) => e.key === 'Enter' && handleUpdateName(selectedResult.id, editNameValue)}
                               className="bg-slate-950 border border-sky-500/50 rounded-lg px-3 py-2 text-sm w-full outline-none text-white focus:ring-2 focus:ring-sky-500/30"
-                              placeholder="輸入紀錄名稱..."
+                              placeholder="Enter record name..."
                             />
                           </div>
                         ) : (
@@ -202,18 +203,18 @@ const App: React.FC = () => {
                             }}
                           >
                             <h2 className="text-base font-bold text-slate-100 truncate group-hover:text-sky-400 transition-colors">
-                              {selectedResult.name || '未命名紀錄'}
+                              {selectedResult.name || 'Untitled Record'}
                             </h2>
                             <i className="fas fa-pencil-alt text-[10px] text-slate-600 group-hover:text-sky-400 transition-colors"></i>
                           </div>
                         )}
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mt-1">辨識結果 (Scan Result)</span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mt-1">Scan Result</span>
                       </div>
                       <button 
                         onClick={() => { setIsScanning(true); setLastScanned(null); setSelectedResult(null); }}
                         className="text-sky-400 text-[10px] font-black hover:bg-sky-400/20 transition-colors whitespace-nowrap bg-sky-400/10 px-3 py-1.5 rounded-full uppercase tracking-widest border border-sky-400/20"
                       >
-                        重新掃描
+                        Rescan
                       </button>
                     </div>
                     
@@ -226,14 +227,14 @@ const App: React.FC = () => {
                         onClick={() => copyToClipboard(selectedResult.data)}
                         className="flex-1 py-3.5 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 transition-all flex items-center justify-center gap-2 text-xs font-bold border border-slate-700 active:scale-95"
                       >
-                        <i className="far fa-copy text-sm"></i> 複製內容
+                        <i className="far fa-copy text-sm"></i> Copy Content
                       </button>
                       {selectedResult.type === 'url' && (
                         <button 
                           onClick={() => window.open(selectedResult.data, '_blank')}
                           className="flex-1 py-3.5 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 transition-all flex items-center justify-center gap-2 text-xs font-bold border border-slate-700 active:scale-95"
                         >
-                          <i className="fas fa-external-link-alt text-sm"></i> 開啟連結
+                          <i className="fas fa-external-link-alt text-sm"></i> Open Link
                         </button>
                       )}
                     </div>
@@ -246,11 +247,11 @@ const App: React.FC = () => {
                       >
                         {selectedResult.isAnalyzing ? (
                           <>
-                            <i className="fas fa-circle-notch animate-spin"></i> 正在分析內容...
+                            <i className="fas fa-circle-notch animate-spin"></i> Analyzing content...
                           </>
                         ) : (
                           <>
-                            <i className="fas fa-robot"></i> Gemini 智能分析
+                            <i className="fas fa-robot"></i> Gemini AI Analysis
                           </>
                         )}
                       </button>
@@ -265,13 +266,13 @@ const App: React.FC = () => {
         ) : (
           <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex flex-col gap-4 mb-2">
-              <h2 className="text-xl font-black">歷史紀錄 (History)</h2>
+              <h2 className="text-xl font-black">History</h2>
               
               <div className="relative group">
                 <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm group-focus-within:text-sky-400 transition-colors"></i>
                 <input
                   type="text"
-                  placeholder="搜尋標題或內容..."
+                  placeholder="Search titles or content..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full bg-slate-900 border border-slate-800 rounded-2xl py-3.5 pl-11 pr-10 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500/30 transition-all"
@@ -292,12 +293,12 @@ const App: React.FC = () => {
                 <div className="w-20 h-20 rounded-full bg-slate-900 flex items-center justify-center mx-auto mb-6 border border-slate-800 shadow-xl">
                   <i className="fas fa-history text-3xl text-slate-700"></i>
                 </div>
-                <p className="text-sm font-bold text-slate-600 tracking-wide">目前還沒有任何掃描紀錄</p>
+                <p className="text-sm font-bold text-slate-600 tracking-wide">No scanning history yet</p>
               </div>
             ) : filteredScans.length === 0 ? (
               <div className="text-center py-20 opacity-50">
                 <i className="fas fa-search text-4xl mb-4 text-slate-700"></i>
-                <p className="text-sm font-medium">找不到相符的結果</p>
+                <p className="text-sm font-medium">No matching results found</p>
               </div>
             ) : (
               <div className="grid gap-3">
@@ -316,7 +317,7 @@ const App: React.FC = () => {
                           {scan.name || (scan.data.length > 30 ? scan.data.substring(0, 30) + '...' : scan.data)}
                         </p>
                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">
-                          {new Date(scan.timestamp).toLocaleString('zh-TW', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          {new Date(scan.timestamp).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -340,7 +341,7 @@ const App: React.FC = () => {
           <div className={`w-12 h-8 flex items-center justify-center rounded-2xl transition-all ${activeTab === 'scanner' ? 'bg-sky-400/10' : ''}`}>
             <i className={`fas fa-camera text-xl ${activeTab === 'scanner' ? 'scale-110' : ''}`}></i>
           </div>
-          <span className="text-[9px] font-black uppercase tracking-[0.2em]">掃描 (Scan)</span>
+          <span className="text-[9px] font-black uppercase tracking-[0.2em]">Scan</span>
         </button>
         <button 
           onClick={() => handleTabChange('history')}
@@ -352,7 +353,7 @@ const App: React.FC = () => {
               {scans.length > 0 && <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-sky-500 rounded-full border-2 border-slate-950"></div>}
             </div>
           </div>
-          <span className="text-[9px] font-black uppercase tracking-[0.2em]">紀錄 (History)</span>
+          <span className="text-[9px] font-black uppercase tracking-[0.2em]">History</span>
         </button>
       </nav>
     </div>

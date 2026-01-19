@@ -4,10 +4,9 @@ import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const analyzeQRContent = async (content: string) => {
-  // Use generateContent for text analysis task
   const response: GenerateContentResponse = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
-    contents: `Analyze the following content from a QR code and provide a professional summary. 
+    contents: `Analyze the following content from a QR code and provide a professional summary in English. 
     Content: "${content}"
     
     Classify the content type (e.g., URL, Text, WiFi credentials, Contact info).
@@ -27,7 +26,7 @@ export const analyzeQRContent = async (content: string) => {
           actions: { 
             type: Type.ARRAY, 
             items: { type: Type.STRING },
-            description: 'List of recommended actions (e.g., "Open Link", "Connect to WiFi").'
+            description: 'List of recommended actions (e.g., "Open Link", "Copy Text").'
           },
         },
         required: ["summary", "classification", "safetyRating", "actions"]
@@ -36,7 +35,6 @@ export const analyzeQRContent = async (content: string) => {
   });
 
   try {
-    // Access .text property directly and handle potential undefined values
     const jsonStr = (response.text || "").trim();
     if (!jsonStr) return null;
     return JSON.parse(jsonStr);

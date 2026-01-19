@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState } from 'react';
 import jsQR from 'jsqr';
 
@@ -33,7 +34,6 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
         
-        // Check for torch capability
         const track = stream.getVideoTracks()[0];
         const capabilities = track.getCapabilities() as any;
         if (capabilities.torch) {
@@ -43,8 +43,8 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
     } catch (err: any) {
       console.error("Camera access error:", err);
       setError({
-        title: "鏡頭存取失敗 (Camera Error)",
-        message: "請在瀏覽器設定中啟用相機權限以掃描 QR Code。"
+        title: "Camera Access Failed",
+        message: "Please enable camera permissions in your browser settings to scan QR codes."
       });
     } finally {
       setIsLoading(false);
@@ -99,14 +99,13 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
           if (code) {
             onScan(code.data);
           } else {
-            alert("無法辨識該圖片中的 QR Code (Could not find QR Code in image)");
+            alert("Could not identify a QR code in the selected image.");
           }
         }
       };
       img.src = event.target?.result as string;
     };
     reader.readAsDataURL(file);
-    // Reset input
     e.target.value = '';
   };
 
@@ -125,7 +124,6 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
           inversionAttempts: 'dontInvert',
         });
         if (code) {
-          // Provide haptic feedback if available
           if (window.navigator.vibrate) window.navigator.vibrate(100);
           onScan(code.data);
           return;
@@ -154,7 +152,6 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
       />
       <canvas ref={canvasRef} className="hidden" />
       
-      {/* Hidden file input */}
       <input 
         type="file" 
         ref={fileInputRef} 
@@ -163,7 +160,6 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
         className="hidden" 
       />
 
-      {/* Floating Controls */}
       {isActive && !isLoading && !error && (
         <div className="absolute top-4 right-4 flex flex-col gap-2 z-20">
           {hasTorch && (
@@ -184,18 +180,17 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
         </div>
       )}
 
-      {/* Standby View */}
       {!isActive && !isLoading && !error && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/40 backdrop-blur-md">
           <div className="w-20 h-20 rounded-full bg-slate-800/80 flex items-center justify-center mb-4 border border-slate-700">
             <i className="fas fa-video-slash text-slate-500 text-2xl"></i>
           </div>
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">鏡頭已關閉 (Camera Off)</p>
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Camera Off</p>
           <button 
             onClick={() => fileInputRef.current?.click()}
             className="mt-6 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-full text-[10px] font-bold uppercase tracking-widest text-slate-300 transition-all border border-slate-700"
           >
-            從相簿選取 (Upload Image)
+            Upload Image
           </button>
         </div>
       )}
@@ -203,7 +198,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
       {isLoading && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/50 backdrop-blur-sm">
           <i className="fas fa-circle-notch animate-spin text-sky-400 text-3xl mb-4"></i>
-          <p className="text-[10px] font-bold text-sky-400/70 uppercase tracking-widest">啟動中 (Initializing...)</p>
+          <p className="text-[10px] font-bold text-sky-400/70 uppercase tracking-widest">Initializing...</p>
         </div>
       )}
 
@@ -230,7 +225,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
           </div>
           
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-3 py-1 bg-black/40 backdrop-blur-md rounded-full border border-white/10">
-            <p className="text-[8px] font-bold text-sky-400 uppercase tracking-[0.2em] whitespace-nowrap">掃描中 (Live Scanning)</p>
+            <p className="text-[8px] font-bold text-sky-400 uppercase tracking-[0.2em] whitespace-nowrap">Live Scanning</p>
           </div>
         </div>
       )}
