@@ -4,8 +4,20 @@ import { ScanResult, AnalysisResponse } from './types';
 import QRScanner from './components/QRScanner';
 import { analyzeQRContent } from './services/geminiService';
 
+const STORAGE_KEY = 'gemini_lens_history';
+
 const App: React.FC = () => {
-  const [scans, setScans] = useState<ScanResult[]>([]);
+  // Initialize state from local storage if available
+  const [scans, setScans] = useState<ScanResult[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error("Failed to load history from local storage", e);
+      return [];
+    }
+  });
+
   const [isScanning, setIsScanning] = useState(true);
   const [lastScanned, setLastScanned] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'scanner' | 'history'>('scanner');
@@ -13,6 +25,15 @@ const App: React.FC = () => {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Persist scans to local storage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(scans));
+    } catch (e) {
+      console.error("Failed to save history to local storage", e);
+    }
+  }, [scans]);
 
   const handleTabChange = (tab: 'scanner' | 'history') => {
     setActiveTab(tab);
@@ -49,6 +70,17 @@ const App: React.FC = () => {
       setSelectedResult(prev => prev ? { ...prev, name: newName } : null);
     }
     setIsEditingName(false);
+  };
+
+  const handleDeleteScan = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (window.confirm("Are you sure you want to delete this scan?")) {
+      setScans(prev => prev.filter(s => s.id !== id));
+      if (selectedResult?.id === id) {
+        setSelectedResult(null);
+        setIsScanning(true);
+      }
+    }
   };
 
   const handleAnalyze = async (scanId: string) => {
@@ -95,7 +127,7 @@ const App: React.FC = () => {
           <div className="flex items-center justify-between mb-3">
             <span className="text-[10px] font-bold uppercase tracking-widest text-sky-400 bg-sky-400/10 px-2 py-0.5 rounded">AI Analysis</span>
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded bg-slate-900 ${safetyColor} border border-white/5`}>
-              {analysis.safetyRating === 'Safe' ? 'Safe' : analysis.safetyRating === 'Warning' ? 'Warning' : 'Dangerous'}
+              {analysis.safetyRating}
             </span>
           </div>
           <p className="text-sm text-slate-300 mb-4 leading-relaxed font-medium">{analysis.summary}</p>
@@ -306,7 +338,7 @@ const App: React.FC = () => {
                   <div 
                     key={scan.id} 
                     onClick={() => { setSelectedResult(scan); setActiveTab('scanner'); setIsScanning(false); }}
-                    className="p-4 rounded-[1.5rem] bg-slate-900 border border-slate-800 hover:border-sky-500/30 hover:bg-slate-800/50 transition-all cursor-pointer group shadow-sm active:scale-[0.98]"
+                    className="p-4 rounded-[1.5rem] bg-slate-900 border border-slate-800 hover:border-sky-500/30 hover:bg-slate-800/50 transition-all cursor-pointer group shadow-sm active:scale-[0.98] relative"
                   >
                     <div className="flex items-center gap-4">
                       <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors ${scan.type === 'url' ? 'bg-indigo-500/10 text-indigo-400 group-hover:bg-indigo-500/20' : 'bg-amber-500/10 text-amber-400 group-hover:bg-amber-500/20'}`}>
@@ -320,9 +352,14 @@ const App: React.FC = () => {
                           {new Date(scan.timestamp).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-3">
                         {scan.aiAnalysis && <i className="fas fa-robot text-sky-400 text-[10px]"></i>}
-                        <i className="fas fa-chevron-right text-slate-700 group-hover:text-sky-400 transition-colors"></i>
+                        <button 
+                          onClick={(e) => handleDeleteScan(scan.id, e)}
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-slate-700 hover:text-red-400 hover:bg-red-400/10 transition-all"
+                        >
+                          <i className="far fa-trash-can text-sm"></i>
+                        </button>
                       </div>
                     </div>
                   </div>
