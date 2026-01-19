@@ -1,0 +1,7 @@
+{
+  "name": "Gemini Lens: Smart QR Reader",
+  "description": "A professional-grade QR code scanner powered by Gemini AI to analyze contents, summarize URLs, and provide deep insights into scanned data.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
