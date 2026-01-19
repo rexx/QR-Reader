@@ -1,11 +1,10 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { ScanResult, AnalysisResponse } from './types';
+import { ScanResult } from './types';
 import QRScanner from './components/QRScanner';
-import { analyzeQRContent } from './services/geminiService';
 
-const SCAN_HISTORY_KEY = 'gemini_lens_history';
-const PREFS_KEY = 'gemini_lens_prefs';
+const SCAN_HISTORY_KEY = 'smart_lens_history';
+const PREFS_KEY = 'smart_lens_prefs';
 
 const App: React.FC = () => {
   const [scans, setScans] = useState<ScanResult[]>(() => {
@@ -63,7 +62,6 @@ const App: React.FC = () => {
       data,
       timestamp: Date.now(),
       type: data.startsWith('http') ? 'url' : 'text',
-      isAnalyzing: false,
     };
 
     setScans(prev => [newScan, ...prev]);
@@ -91,21 +89,6 @@ const App: React.FC = () => {
     }
   };
 
-  const handleAnalyze = async (scanId: string) => {
-    const scan = scans.find(s => s.id === scanId);
-    if (!scan || scan.aiAnalysis) return;
-
-    setScans(prev => prev.map(s => s.id === scanId ? { ...s, isAnalyzing: true } : s));
-    const analysis = await analyzeQRContent(scan.data);
-    
-    setScans(prev => {
-        const updated = prev.map(s => s.id === scanId ? { ...s, isAnalyzing: false, aiAnalysis: analysis ? JSON.stringify(analysis) : undefined } : s);
-        const updatedSelected = updated.find(s => s.id === scanId);
-        if (updatedSelected) setSelectedResult(updatedSelected);
-        return updated;
-    });
-  };
-
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     alert("Copied to clipboard!");
@@ -120,50 +103,6 @@ const App: React.FC = () => {
     );
   }, [scans, searchQuery]);
 
-  const renderAnalysis = (result: ScanResult) => {
-    if (!result.aiAnalysis) return null;
-    
-    try {
-      const analysis: AnalysisResponse = JSON.parse(result.aiAnalysis);
-      if (!analysis) return null;
-
-      const safetyColor = analysis.safetyRating === 'Safe' ? 'text-green-400' : 
-                          analysis.safetyRating === 'Warning' ? 'text-yellow-400' : 'text-red-400';
-
-      return (
-        <div className="mt-4 p-4 rounded-xl bg-slate-900/60 border border-slate-700/50 backdrop-blur-md">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-sky-400 bg-sky-400/10 px-2 py-0.5 rounded">AI Analysis</span>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded bg-slate-900 ${safetyColor} border border-white/5`}>
-              Safety: {analysis.safetyRating}
-            </span>
-          </div>
-          <p className="text-sm text-slate-300 mb-4 leading-relaxed font-medium">{analysis.summary}</p>
-          <div className="flex flex-wrap gap-2">
-            {analysis.actions.map((action, idx) => (
-              <button
-                key={idx}
-                className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-all flex items-center gap-2 shadow-lg shadow-sky-600/10 active:scale-95"
-                onClick={() => {
-                  if (action.toLowerCase().includes('open') && result.data.startsWith('http')) {
-                    window.open(result.data, '_blank');
-                  } else {
-                    copyToClipboard(result.data);
-                  }
-                }}
-              >
-                {action.toLowerCase().includes('open') ? <i className="fas fa-external-link-alt text-[10px]"></i> : <i className="far fa-copy text-[10px]"></i>}
-                {action}
-              </button>
-            ))}
-          </div>
-        </div>
-      );
-    } catch (e) {
-      return null;
-    }
-  };
-
   return (
     <div className="min-h-screen max-w-md mx-auto flex flex-col bg-slate-950 text-slate-100 shadow-2xl relative border-x border-slate-800">
       <header className="p-6 pb-2 border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-md sticky top-0 z-30">
@@ -173,9 +112,9 @@ const App: React.FC = () => {
               <i className="fas fa-qrcode text-xl text-white"></i>
             </div>
             <div>
-              <h1 className="text-xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">Gemini Lens</h1>
+              <h1 className="text-xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">Smart Lens</h1>
               <div className="flex items-center gap-1.5">
-                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em]">Smart QR Reader</p>
+                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em]">QR Reader</p>
                 {isScanning && activeTab === 'scanner' && (
                   <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                 )}
@@ -196,7 +135,7 @@ const App: React.FC = () => {
                     <h3 className="text-lg font-bold">{isScanning ? 'Scanning...' : 'Scanner Paused'}</h3>
                     <p className="text-xs text-slate-400 max-w-[280px] mx-auto mt-2 leading-relaxed">
                       {isScanning 
-                        ? 'Point your camera at a QR code. Gemini AI will automatically analyze the content.' 
+                        ? 'Point your camera at a QR code to extract its content.' 
                         : 'The camera is currently off. Click the button below to restart it.'}
                     </p>
                   </div>
@@ -216,7 +155,7 @@ const App: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-6 animate-in slide-in-from-bottom-8 duration-500">
-                <div className="p-1 rounded-[2.5rem] bg-gradient-to-br from-sky-400/20 to-transparent">
+                <div className="p-1 rounded-[2.5rem] bg-gradient-to-br from-slate-800 to-transparent">
                   <div className="p-6 rounded-[2.3rem] bg-slate-900 border border-slate-800 shadow-2xl">
                     <div className="flex justify-between items-start mb-6">
                       <div className="flex-1 mr-4">
@@ -271,32 +210,12 @@ const App: React.FC = () => {
                       {selectedResult.type === 'url' && (
                         <button 
                           onClick={() => window.open(selectedResult.data, '_blank')}
-                          className="flex-1 py-3.5 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 transition-all flex items-center justify-center gap-2 text-xs font-bold border border-slate-700 active:scale-95"
+                          className="flex-1 py-3.5 px-4 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white transition-all flex items-center justify-center gap-2 text-xs font-bold shadow-lg shadow-sky-600/10 active:scale-95"
                         >
                           <i className="fas fa-external-link-alt text-sm"></i> Open Link
                         </button>
                       )}
                     </div>
-
-                    {!selectedResult.aiAnalysis && (
-                      <button 
-                        onClick={() => handleAnalyze(selectedResult.id)}
-                        disabled={selectedResult.isAnalyzing}
-                        className="w-full mt-4 py-4 px-4 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 disabled:opacity-50 transition-all flex items-center justify-center gap-2 text-sm font-black shadow-xl shadow-sky-500/20 active:scale-[0.98]"
-                      >
-                        {selectedResult.isAnalyzing ? (
-                          <>
-                            <i className="fas fa-circle-notch animate-spin"></i> Analyzing with Gemini...
-                          </>
-                        ) : (
-                          <>
-                            <i className="fas fa-robot"></i> Gemini AI Analysis
-                          </>
-                        )}
-                      </button>
-                    )}
-
-                    {renderAnalysis(selectedResult)}
                   </div>
                 </div>
               </div>
@@ -360,7 +279,6 @@ const App: React.FC = () => {
                         </p>
                       </div>
                       <div className="flex items-center gap-3">
-                        {scan.aiAnalysis && <i className="fas fa-robot text-sky-400 text-[10px]"></i>}
                         <button 
                           onClick={(e) => handleDeleteScan(scan.id, e)}
                           className="w-8 h-8 rounded-full flex items-center justify-center text-slate-700 hover:text-red-400 hover:bg-red-400/10 transition-all"

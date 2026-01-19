@@ -1,3 +1,4 @@
+
 name: Deploy to GitHub Pages
 
 on:
@@ -34,8 +35,6 @@ jobs:
 
       - name: Build
         run: npm run build
-        env:
-          API_KEY: ${{ secrets.API_KEY }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

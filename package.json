@@ -1,5 +1,6 @@
+
 {
-  "name": "gemini-lens-qr-reader",
+  "name": "smart-lens-qr-reader",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -9,7 +10,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@google/genai": "^1.37.0",
     "jsqr": "^1.4.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
