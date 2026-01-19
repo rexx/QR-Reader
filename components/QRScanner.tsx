@@ -12,19 +12,50 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const [error, setError] = useState<{title: string; message: string} | null>(null);
+  const [error, setError] = useState<{title: string; message: string; type: 'denied' | 'error'} | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [hasTorch, setHasTorch] = useState(false);
   const [isTorchOn, setIsTorchOn] = useState(false);
   const requestRef = useRef<number | undefined>(undefined);
   const streamRef = useRef<MediaStream | null>(null);
 
+  const checkPermissionStatus = async () => {
+    try {
+      // Note: Firefox and some mobile browsers might not support 'camera' query in Permissions API
+      if (navigator.permissions && (navigator.permissions as any).query) {
+        const result = await navigator.permissions.query({ name: 'camera' as any });
+        if (result.state === 'denied') {
+          setError({
+            title: "相機權限已禁用",
+            message: "請在瀏覽器設定中允許此網站存取相機，以開啟掃描功能。",
+            type: 'denied'
+          });
+          return false;
+        }
+      }
+    } catch (e) {
+      console.warn("Permissions API not fully supported", e);
+    }
+    return true;
+  };
+
   const startCamera = async () => {
     setIsLoading(true);
     setError(null);
+
+    const isAllowed = await checkPermissionStatus();
+    if (!isAllowed) {
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const constraints: MediaStreamConstraints = {
-        video: { facingMode: 'environment' }
+        video: { 
+          facingMode: 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
       };
       
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -32,7 +63,11 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+        // Wait for video to be ready
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current?.play().catch(console.error);
+          setIsLoading(false);
+        };
         
         const track = stream.getVideoTracks()[0];
         const capabilities = track.getCapabilities() as any;
@@ -42,12 +77,20 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
       }
     } catch (err: any) {
       console.error("Camera access error:", err);
-      setError({
-        title: "Camera Access Failed",
-        message: "Please enable camera permissions in your browser settings to scan QR codes."
-      });
-    } finally {
       setIsLoading(false);
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setError({
+          title: "需要相機權限",
+          message: "請點擊「允許」來啟動掃描器。若已封鎖，請至瀏覽器設定中手動開啟。",
+          type: 'denied'
+        });
+      } else {
+        setError({
+          title: "相機啟動失敗",
+          message: "無法取得相機串流，請檢查是否有其他應用程式正在佔用相機。",
+          type: 'error'
+        });
+      }
     }
   };
 
@@ -99,7 +142,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
           if (code) {
             onScan(code.data);
           } else {
-            alert("Could not identify a QR code in the selected image.");
+            alert("無法在圖片中辨識 QR Code。");
           }
         }
       };
@@ -147,8 +190,9 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
     <div className="relative aspect-square overflow-hidden rounded-3xl bg-slate-950 border-4 border-slate-800 shadow-2xl transition-all duration-500">
       <video
         ref={videoRef}
-        className={`w-full h-full object-cover transition-opacity duration-700 ${isActive && !isLoading ? 'opacity-100' : 'opacity-0'}`}
+        className={`w-full h-full object-cover transition-opacity duration-700 ${isActive && !isLoading && !error ? 'opacity-100' : 'opacity-0'}`}
         playsInline
+        muted
       />
       <canvas ref={canvasRef} className="hidden" />
       
@@ -173,7 +217,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
           <button 
             onClick={() => fileInputRef.current?.click()}
             className="w-10 h-10 rounded-full bg-black/50 text-white backdrop-blur-md flex items-center justify-center hover:bg-black/70 transition-all"
-            title="Upload from Gallery"
+            title="從相簿上傳"
           >
             <i className="fas fa-image"></i>
           </button>
@@ -185,12 +229,12 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
           <div className="w-20 h-20 rounded-full bg-slate-800/80 flex items-center justify-center mb-4 border border-slate-700">
             <i className="fas fa-video-slash text-slate-500 text-2xl"></i>
           </div>
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Camera Off</p>
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">相機已關閉</p>
           <button 
             onClick={() => fileInputRef.current?.click()}
             className="mt-6 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-full text-[10px] font-bold uppercase tracking-widest text-slate-300 transition-all border border-slate-700"
           >
-            Upload Image
+            上傳圖片掃描
           </button>
         </div>
       )}
@@ -198,17 +242,23 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
       {isLoading && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/50 backdrop-blur-sm">
           <i className="fas fa-circle-notch animate-spin text-sky-400 text-3xl mb-4"></i>
-          <p className="text-[10px] font-bold text-sky-400/70 uppercase tracking-widest">Initializing...</p>
+          <p className="text-[10px] font-bold text-sky-400/70 uppercase tracking-widest">啟動相機中...</p>
         </div>
       )}
 
       {error && (
         <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-slate-900/90 backdrop-blur-md z-10">
-          <div className="w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center mb-4">
-             <i className="fas fa-exclamation-triangle text-amber-500 text-2xl"></i>
+          <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${error.type === 'denied' ? 'bg-amber-500/10' : 'bg-red-500/10'}`}>
+             <i className={`fas ${error.type === 'denied' ? 'fa-lock' : 'fa-exclamation-triangle'} ${error.type === 'denied' ? 'text-amber-500' : 'text-red-500'} text-2xl`}></i>
           </div>
-          <h4 className="font-bold text-white mb-1">{error.title}</h4>
-          <p className="text-xs text-slate-400 leading-relaxed max-w-[200px]">{error.message}</p>
+          <h4 className="font-bold text-white mb-2">{error.title}</h4>
+          <p className="text-xs text-slate-400 leading-relaxed max-w-[220px] mb-6">{error.message}</p>
+          <button 
+            onClick={() => { setError(null); startCamera(); }}
+            className="px-6 py-2 bg-sky-500 hover:bg-sky-400 text-white rounded-full text-[10px] font-bold uppercase tracking-widest transition-all"
+          >
+            重試一次
+          </button>
         </div>
       )}
 
@@ -225,7 +275,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
           </div>
           
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-3 py-1 bg-black/40 backdrop-blur-md rounded-full border border-white/10">
-            <p className="text-[8px] font-bold text-sky-400 uppercase tracking-[0.2em] whitespace-nowrap">Live Scanning</p>
+            <p className="text-[8px] font-bold text-sky-400 uppercase tracking-[0.2em] whitespace-nowrap">正在進行即時掃描</p>
           </div>
         </div>
       )}
