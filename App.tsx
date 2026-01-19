@@ -121,18 +121,12 @@ const App: React.FC = () => {
             {selectedResult ? (
               /* Detail View */
               <div className="space-y-6 animate-in slide-in-from-bottom-8 duration-500">
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center mb-2">
                   <button 
                     onClick={() => setSelectedResult(null)}
                     className="flex items-center gap-2 text-slate-500 hover:text-white transition-colors text-[10px] font-bold uppercase tracking-widest"
                   >
                     <i className="fas fa-chevron-left"></i> Back to History
-                  </button>
-                  <button 
-                    onClick={() => handleTabChange('scanner')}
-                    className="text-sky-400 text-[10px] font-black hover:bg-sky-400/20 transition-colors whitespace-nowrap bg-sky-400/10 px-3 py-1.5 rounded-full uppercase tracking-widest border border-sky-400/20"
-                  >
-                    New Scan
                   </button>
                 </div>
 
@@ -199,9 +193,7 @@ const App: React.FC = () => {
             ) : (
               /* History List View */
               <>
-                <div className="flex flex-col gap-4 mb-2">
-                  <h2 className="text-xl font-black">History</h2>
-                  
+                <div className="flex flex-col gap-4 mb-4">
                   <div className="relative group">
                     <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm group-focus-within:text-sky-400 transition-colors"></i>
                     <input
