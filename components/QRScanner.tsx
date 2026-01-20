@@ -259,32 +259,6 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
           </button>
         </div>
       )}
-
-      {isActive && !error && !isLoading && (
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute inset-0 border-[40px] border-black/30"></div>
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-52 h-52 border-2 border-sky-400/30 rounded-3xl">
-             <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-sky-400 rounded-tl-xl"></div>
-             <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-sky-400 rounded-tr-xl"></div>
-             <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-sky-400 rounded-bl-xl"></div>
-             <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-sky-400 rounded-br-xl"></div>
-             
-             <div className="absolute top-0 left-0 w-full h-0.5 bg-sky-400/80 shadow-[0_0_15px_rgba(56,189,248,0.6)] animate-scan-move"></div>
-          </div>
-        </div>
-      )}
-
-      <style>{`
-        @keyframes scan-move {
-          0% { top: 0; opacity: 0.2; }
-          10% { opacity: 1; }
-          90% { opacity: 1; }
-          100% { top: 100%; opacity: 0.2; }
-        }
-        .animate-scan-move {
-          animation: scan-move 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-        }
-      `}</style>
     </div>
   );
 };

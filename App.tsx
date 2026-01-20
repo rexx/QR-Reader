@@ -109,15 +109,17 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto px-6 pt-6 pb-28">
+      {/* pb-28 provides space for the fixed nav at the bottom */}
+      <main className="flex-1 overflow-y-auto px-6 pb-28 flex flex-col">
         {activeTab === 'scanner' ? (
-          <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
+          /* Centered container for the scanner */
+          <div className="flex-1 flex flex-col justify-center animate-in fade-in zoom-in-95 duration-500">
             <div className="relative">
               <QRScanner isActive={isCameraActive} onScan={handleScan} />
             </div>
           </div>
         ) : (
-          <div className="space-y-6 animate-in fade-in duration-500">
+          <div className="space-y-6 pt-6 animate-in fade-in duration-500">
             {selectedResult ? (
               /* Detail View */
               <div className="space-y-6 animate-in slide-in-from-bottom-8 duration-500">
