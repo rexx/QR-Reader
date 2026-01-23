@@ -10,7 +10,6 @@ interface QRScannerProps {
 const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [error, setError] = useState<{title: string; message: string; type: 'denied' | 'error'} | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -78,14 +77,14 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
       setIsLoading(false);
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
         setError({
-          title: "Permission Required",
-          message: "Please click 'Allow' to start the scanner. If blocked, check your site settings.",
+          title: "Camera Permission Required",
+          message: "Please allow camera access to start scanning. If blocked, check site settings.",
           type: 'denied'
         });
       } else {
         setError({
-          title: "Camera Failed",
-          message: "Could not access camera stream. Please ensure no other app is using it.",
+          title: "Camera Initialization Failed",
+          message: "Unable to access the camera stream. Ensure no other application is using the camera.",
           type: 'error'
         });
       }
@@ -119,35 +118,6 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
     } catch (e) {
       console.error("Failed to toggle torch", e);
     }
-  };
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        if (context) {
-          canvas.width = img.width;
-          canvas.height = img.height;
-          context.drawImage(img, 0, 0);
-          const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-          const code = jsQR(imageData.data, imageData.width, imageData.height);
-          if (code) {
-            onScan(code.data);
-          } else {
-            alert("No QR Code detected in this image.");
-          }
-        }
-      };
-      img.src = event.target?.result as string;
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
   };
 
   const scan = () => {
@@ -185,7 +155,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
   }, [isActive]);
 
   return (
-    <div className="relative aspect-square overflow-hidden rounded-3xl bg-slate-950 border-4 border-slate-800 shadow-2xl transition-all duration-500">
+    <div className="relative aspect-square overflow-hidden rounded-[3rem] bg-slate-950 border-4 border-slate-800 shadow-2xl">
       <video
         ref={videoRef}
         className={`w-full h-full object-cover transition-opacity duration-700 ${isActive && !isLoading && !error ? 'opacity-100' : 'opacity-0'}`}
@@ -194,31 +164,28 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
       />
       <canvas ref={canvasRef} className="hidden" />
       
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        onChange={handleFileUpload} 
-        accept="image/*" 
-        className="hidden" 
-      />
-
       {isActive && !isLoading && !error && (
-        <div className="absolute top-4 right-4 flex flex-col gap-2 z-20">
+        <div className="absolute top-6 right-6 z-20">
           {hasTorch && (
             <button 
               onClick={toggleTorch}
-              className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${isTorchOn ? 'bg-yellow-400 text-slate-900 shadow-[0_0_15px_rgba(250,204,21,0.5)]' : 'bg-black/50 text-white backdrop-blur-md'}`}
+              className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${isTorchOn ? 'bg-yellow-400 text-slate-900 shadow-[0_0_20px_rgba(250,204,21,0.5)]' : 'bg-black/50 text-white backdrop-blur-md border border-white/10'}`}
             >
               <i className="fas fa-lightbulb"></i>
             </button>
           )}
-          <button 
-            onClick={() => fileInputRef.current?.click()}
-            className="w-10 h-10 rounded-full bg-black/50 text-white backdrop-blur-md flex items-center justify-center hover:bg-black/70 transition-all"
-            title="Upload from Gallery"
-          >
-            <i className="fas fa-image"></i>
-          </button>
+        </div>
+      )}
+
+      {/* Scanning focus guides */}
+      {isActive && !isLoading && !error && (
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+          <div className="w-2/3 h-2/3 border-2 border-sky-400/30 rounded-[2rem] relative">
+            <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-sky-400 rounded-tl-lg"></div>
+            <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-sky-400 rounded-tr-lg"></div>
+            <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-sky-400 rounded-bl-lg"></div>
+            <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-sky-400 rounded-br-lg"></div>
+          </div>
         </div>
       )}
 
@@ -228,12 +195,6 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
             <i className="fas fa-video-slash text-slate-500 text-2xl"></i>
           </div>
           <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Camera Offline</p>
-          <button 
-            onClick={() => fileInputRef.current?.click()}
-            className="mt-6 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-full text-[10px] font-bold uppercase tracking-widest text-slate-300 transition-all border border-slate-700"
-          >
-            Upload Image
-          </button>
         </div>
       )}
 

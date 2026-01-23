@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Smart Lens: QR Reader</title>
     
     <!-- PWA & Icons - Using absolute-style paths for assets and relative for manifest -->
@@ -19,13 +19,33 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        body {
+        
+        html, body {
             font-family: 'Inter', sans-serif;
             background-color: #0f172a;
             color: #f8fafc;
             margin: 0;
-            /* Prevent overscroll bounce on mobile */
-            overscroll-behavior-y: contain;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            /* Prevent the entire page from being scrollable or zoomable */
+            overflow: hidden;
+            position: fixed;
+            touch-action: none;
+        }
+
+        #root {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        /* Allow vertical scrolling only where explicitly enabled */
+        .scrollable-y {
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-y;
         }
     </style>
 <script type="importmap">
@@ -40,6 +60,7 @@
   }
 }
 </script>
+<link rel="stylesheet" href="/index.css">
 </head>
 <body>
     <div id="root"></div>
