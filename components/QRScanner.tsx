@@ -134,7 +134,8 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
         const code = jsQR(imageData.data, imageData.width, imageData.height, {
           inversionAttempts: 'dontInvert',
         });
-        if (code) {
+        // 檢查 code 是否存在且內容不為空 (排除空字串或只有空格的情況)
+        if (code && code.data && code.data.trim() !== '') {
           if (window.navigator.vibrate) window.navigator.vibrate(100);
           onScan(code.data);
           return;

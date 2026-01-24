@@ -40,6 +40,9 @@ const App: React.FC = () => {
   };
 
   const handleScan = useCallback((data: string) => {
+    // 額外檢查：如果內容為空或僅包含空白字元，則不處理
+    if (!data || data.trim() === '') return;
+    
     if (data === lastScanned) return;
     setLastScanned(data);
 
@@ -73,10 +76,10 @@ const App: React.FC = () => {
           context.drawImage(img, 0, 0);
           const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
           const code = jsQR(imageData.data, imageData.width, imageData.height);
-          if (code) {
+          if (code && code.data && code.data.trim() !== '') {
             handleScan(code.data);
           } else {
-            alert("No QR Code detected in this image. Please try another one.");
+            alert("No valid QR Code detected in this image. Please try another one.");
           }
         }
       };
@@ -294,16 +297,28 @@ const App: React.FC = () => {
                               <i className={scan.type === 'url' ? 'fas fa-link text-base' : 'fas fa-font text-base'}></i>
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-black text-slate-100 truncate pr-1">
-                                {scan.name || scan.data}
-                              </p>
-                              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">
+                              {scan.name ? (
+                                <>
+                                  <p className="text-sm font-black text-slate-100 truncate pr-1">
+                                    {scan.name}
+                                  </p>
+                                  <p className="text-[11px] text-slate-400 truncate pr-1 mt-0.5 opacity-80">
+                                    {scan.data}
+                                  </p>
+                                </>
+                              ) : (
+                                <p className="text-sm font-black text-slate-100 truncate pr-1">
+                                  {scan.data}
+                                </p>
+                              )}
+                              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1.5 flex items-center gap-1.5">
+                                <i className="far fa-calendar-alt opacity-40 text-[8px]"></i>
                                 {new Date(scan.timestamp).toLocaleDateString()}
                               </p>
                             </div>
                             <button 
                               onClick={(e) => handleDeleteScan(scan.id, e)}
-                              className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-slate-700 hover:text-red-400 hover:bg-red-400/10 active:scale-90"
+                              className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-slate-700 hover:text-red-400 hover:bg-red-400/10 active:scale-90 transition-all"
                             >
                               <i className="far fa-trash-can text-sm"></i>
                             </button>
