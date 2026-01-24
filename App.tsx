@@ -253,8 +253,8 @@ const App: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="flex-1 flex flex-col overflow-hidden px-6 pt-6">
-                <div className="shrink-0 mb-6">
+              <div className="flex-1 flex flex-col overflow-hidden pt-6">
+                <div className="shrink-0 mb-6 px-4">
                   <div className="relative group">
                     <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm group-focus-within:text-sky-400 transition-colors"></i>
                     <input
@@ -267,7 +267,7 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex-1 scrollable-y pb-28">
+                <div className="flex-1 scrollable-y pb-32 px-4">
                   {scans.length === 0 ? (
                     <div className="text-center py-20 bg-slate-900/40 rounded-[2.5rem] border border-dashed border-slate-800">
                       <div className="w-20 h-20 rounded-full bg-slate-900 flex items-center justify-center mx-auto mb-6 border border-slate-800 shadow-xl">
@@ -287,15 +287,15 @@ const App: React.FC = () => {
                         <div 
                           key={scan.id} 
                           onClick={() => { setSelectedResult(scan); }}
-                          className="p-4 rounded-[1.5rem] bg-slate-900 border border-slate-800 hover:border-sky-500/30 hover:bg-slate-800/50 transition-all cursor-pointer group shadow-sm active:scale-[0.98] relative"
+                          className="p-4 rounded-[1.5rem] bg-slate-900 border border-slate-800 hover:border-sky-500/30 hover:bg-slate-800/50 transition-all cursor-pointer group shadow-sm active:scale-[0.98] relative w-full overflow-hidden"
                         >
-                          <div className="flex items-center gap-4">
-                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors ${scan.type === 'url' ? 'bg-indigo-500/10 text-indigo-400 group-hover:bg-indigo-500/20' : 'bg-amber-500/10 text-amber-400 group-hover:bg-amber-500/20'}`}>
-                              <i className={scan.type === 'url' ? 'fas fa-link text-lg' : 'fas fa-font text-lg'}></i>
+                          <div className="flex items-center gap-3 w-full">
+                            <div className={`w-11 h-11 shrink-0 rounded-2xl flex items-center justify-center transition-colors ${scan.type === 'url' ? 'bg-indigo-500/10 text-indigo-400 group-hover:bg-indigo-500/20' : 'bg-amber-500/10 text-amber-400 group-hover:bg-amber-500/20'}`}>
+                              <i className={scan.type === 'url' ? 'fas fa-link text-base' : 'fas fa-font text-base'}></i>
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-black text-slate-100 truncate">
-                                {scan.name || (scan.data.length > 30 ? scan.data.substring(0, 30) + '...' : scan.data)}
+                              <p className="text-sm font-black text-slate-100 truncate pr-1">
+                                {scan.name || scan.data}
                               </p>
                               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">
                                 {new Date(scan.timestamp).toLocaleDateString()}
@@ -303,7 +303,7 @@ const App: React.FC = () => {
                             </div>
                             <button 
                               onClick={(e) => handleDeleteScan(scan.id, e)}
-                              className="w-8 h-8 rounded-full flex items-center justify-center text-slate-700 hover:text-red-400 hover:bg-red-400/10 transition-all"
+                              className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-slate-700 hover:text-red-400 hover:bg-red-400/10 transition-all active:scale-90"
                             >
                               <i className="far fa-trash-can text-sm"></i>
                             </button>
@@ -319,7 +319,7 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <nav className="shrink-0 bg-slate-950/80 backdrop-blur-2xl border-t border-slate-800/50 px-4 py-6 flex justify-around items-center z-50">
+      <nav className="shrink-0 bg-slate-950/90 backdrop-blur-3xl border-t border-slate-800/50 px-4 pt-4 pb-10 flex justify-around items-center z-50 shadow-[0_-10px_20px_rgba(0,0,0,0.4)]">
         <button 
           onClick={() => handleTabChange('upload')}
           className={`flex flex-col items-center gap-1.5 transition-all group flex-1 ${activeTab === 'upload' ? 'text-sky-400' : 'text-slate-600 hover:text-slate-400'}`}
