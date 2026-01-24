@@ -144,21 +144,21 @@ const App: React.FC = () => {
           <div className="flex-1 flex flex-col justify-center px-6">
             <div 
               onClick={() => fileInputRef.current?.click()}
-              className="group relative cursor-pointer aspect-square rounded-[3rem] p-1 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 hover:from-sky-500/50 hover:to-blue-600/50 shadow-2xl"
+              className="group relative cursor-pointer aspect-square rounded-[3rem] bg-slate-900 border-4 border-slate-800 hover:border-sky-500/50 shadow-2xl overflow-hidden"
             >
-              <div className="w-full h-full rounded-[2.8rem] bg-slate-900 flex flex-col items-center justify-center border-2 border-dashed border-slate-800 group-hover:border-sky-500/30 overflow-hidden relative">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-sky-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <div className="w-full h-full flex flex-col items-center justify-center relative">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-sky-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100"></div>
                 
-                <div className="w-24 h-24 rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center mb-6 shadow-xl group-hover:scale-110 transition-transform duration-300">
-                  <i className="fas fa-file-arrow-up text-3xl text-sky-400"></i>
+                <div className="w-20 h-20 rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center mb-6 shadow-xl group-hover:scale-110 group-hover:bg-slate-800">
+                  <i className="fas fa-file-arrow-up text-3xl text-sky-400 group-hover:text-sky-300"></i>
                 </div>
                 
                 <h3 className="text-lg font-bold text-slate-100 mb-2">Upload Image</h3>
                 <p className="text-xs text-slate-500 font-medium tracking-wide text-center px-10">
-                  Click or drag & drop a QR Code image here<br/>to decode
+                  Select a QR Code image<br/>to decode
                 </p>
                 
-                <div className="mt-8 px-6 py-2.5 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 text-[10px] font-black uppercase tracking-[0.2em] group-hover:bg-sky-500 group-hover:text-white transition-colors duration-200">
+                <div className="mt-8 px-6 py-2.5 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 text-[10px] font-black uppercase tracking-[0.2em] group-hover:bg-sky-500 group-hover:text-white">
                   Select File
                 </div>
               </div>
@@ -216,10 +216,10 @@ const App: React.FC = () => {
                                 setEditNameValue(selectedResult.name || '');
                               }}
                             >
-                              <h2 className="text-base font-bold text-slate-100 truncate group-hover:text-sky-400 transition-colors">
+                              <h2 className="text-base font-bold text-slate-100 truncate group-hover:text-sky-400">
                                 {selectedResult.name || 'Untitled Scan'}
                               </h2>
-                              <i className="fas fa-pencil-alt text-[10px] text-slate-600 group-hover:text-sky-400 transition-colors"></i>
+                              <i className="fas fa-pencil-alt text-[10px] text-slate-600 group-hover:text-sky-400"></i>
                             </div>
                           )}
                           <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mt-1">
@@ -235,14 +235,14 @@ const App: React.FC = () => {
                       <div className="flex gap-3">
                         <button 
                           onClick={() => copyToClipboard(selectedResult.data)}
-                          className="flex-1 py-3.5 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 transition-all flex items-center justify-center gap-2 text-xs font-bold border border-slate-700 active:scale-95"
+                          className="flex-1 py-3.5 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 flex items-center justify-center gap-2 text-xs font-bold border border-slate-700 active:scale-95"
                         >
                           <i className="far fa-copy text-sm"></i> Copy
                         </button>
                         {selectedResult.type === 'url' && (
                           <button 
                             onClick={() => window.open(selectedResult.data, '_blank')}
-                            className="flex-1 py-3.5 px-4 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white transition-all flex items-center justify-center gap-2 text-xs font-bold shadow-lg shadow-sky-600/10 active:scale-95"
+                            className="flex-1 py-3.5 px-4 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white flex items-center justify-center gap-2 text-xs font-bold shadow-lg shadow-sky-600/10 active:scale-95"
                           >
                             <i className="fas fa-external-link-alt text-sm"></i> Open
                           </button>
@@ -256,13 +256,13 @@ const App: React.FC = () => {
               <div className="flex-1 flex flex-col overflow-hidden pt-6">
                 <div className="shrink-0 mb-6 px-4">
                   <div className="relative group">
-                    <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm group-focus-within:text-sky-400 transition-colors"></i>
+                    <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm group-focus-within:text-sky-400"></i>
                     <input
                       type="text"
                       placeholder="Search history..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-2xl py-3.5 pl-11 pr-10 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500/30 transition-all"
+                      className="w-full bg-slate-900 border border-slate-800 rounded-2xl py-3.5 pl-11 pr-10 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500/30"
                     />
                   </div>
                 </div>
@@ -287,10 +287,10 @@ const App: React.FC = () => {
                         <div 
                           key={scan.id} 
                           onClick={() => { setSelectedResult(scan); }}
-                          className="p-4 rounded-[1.5rem] bg-slate-900 border border-slate-800 hover:border-sky-500/30 hover:bg-slate-800/50 transition-all cursor-pointer group shadow-sm active:scale-[0.98] relative w-full overflow-hidden"
+                          className="p-4 rounded-[1.5rem] bg-slate-900 border border-slate-800 hover:border-sky-500/30 hover:bg-slate-800/50 cursor-pointer group shadow-sm active:scale-[0.98] relative w-full overflow-hidden"
                         >
                           <div className="flex items-center gap-3 w-full">
-                            <div className={`w-11 h-11 shrink-0 rounded-2xl flex items-center justify-center transition-colors ${scan.type === 'url' ? 'bg-indigo-500/10 text-indigo-400 group-hover:bg-indigo-500/20' : 'bg-amber-500/10 text-amber-400 group-hover:bg-amber-500/20'}`}>
+                            <div className={`w-11 h-11 shrink-0 rounded-2xl flex items-center justify-center ${scan.type === 'url' ? 'bg-indigo-500/10 text-indigo-400 group-hover:bg-indigo-500/20' : 'bg-amber-500/10 text-amber-400 group-hover:bg-amber-500/20'}`}>
                               <i className={scan.type === 'url' ? 'fas fa-link text-base' : 'fas fa-font text-base'}></i>
                             </div>
                             <div className="flex-1 min-w-0">
@@ -303,7 +303,7 @@ const App: React.FC = () => {
                             </div>
                             <button 
                               onClick={(e) => handleDeleteScan(scan.id, e)}
-                              className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-slate-700 hover:text-red-400 hover:bg-red-400/10 transition-all active:scale-90"
+                              className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-slate-700 hover:text-red-400 hover:bg-red-400/10 active:scale-90"
                             >
                               <i className="far fa-trash-can text-sm"></i>
                             </button>
@@ -322,9 +322,9 @@ const App: React.FC = () => {
       <nav className="shrink-0 bg-slate-950/90 backdrop-blur-3xl border-t border-slate-800/50 px-4 pt-4 pb-10 flex justify-around items-center z-50 shadow-[0_-10px_20px_rgba(0,0,0,0.4)]">
         <button 
           onClick={() => handleTabChange('upload')}
-          className={`flex flex-col items-center gap-1.5 transition-all group flex-1 ${activeTab === 'upload' ? 'text-sky-400' : 'text-slate-600 hover:text-slate-400'}`}
+          className={`flex flex-col items-center gap-1.5 group flex-1 ${activeTab === 'upload' ? 'text-sky-400' : 'text-slate-600 hover:text-slate-400'}`}
         >
-          <div className={`w-12 h-8 flex items-center justify-center rounded-2xl transition-all ${activeTab === 'upload' ? 'bg-sky-400/10' : ''}`}>
+          <div className={`w-12 h-8 flex items-center justify-center rounded-2xl ${activeTab === 'upload' ? 'bg-sky-400/10' : ''}`}>
             <i className={`fas fa-file-upload text-lg ${activeTab === 'upload' ? 'scale-110' : ''}`}></i>
           </div>
           <span className="text-[9px] font-black uppercase tracking-[0.1em]">Upload</span>
@@ -332,9 +332,9 @@ const App: React.FC = () => {
         
         <button 
           onClick={() => handleTabChange('scanner')}
-          className={`flex flex-col items-center gap-1.5 transition-all group flex-1 ${activeTab === 'scanner' ? 'text-sky-400' : 'text-slate-600 hover:text-slate-400'}`}
+          className={`flex flex-col items-center gap-1.5 group flex-1 ${activeTab === 'scanner' ? 'text-sky-400' : 'text-slate-600 hover:text-slate-400'}`}
         >
-          <div className={`w-12 h-8 flex items-center justify-center rounded-2xl transition-all ${activeTab === 'scanner' ? 'bg-sky-400/10' : ''}`}>
+          <div className={`w-12 h-8 flex items-center justify-center rounded-2xl ${activeTab === 'scanner' ? 'bg-sky-400/10' : ''}`}>
             <i className={`fas fa-camera text-lg ${activeTab === 'scanner' ? 'scale-110' : ''}`}></i>
           </div>
           <span className="text-[9px] font-black uppercase tracking-[0.1em]">Camera</span>
@@ -342,9 +342,9 @@ const App: React.FC = () => {
 
         <button 
           onClick={() => handleTabChange('history')}
-          className={`flex flex-col items-center gap-1.5 transition-all group flex-1 ${activeTab === 'history' ? 'text-sky-400' : 'text-slate-600 hover:text-slate-400'}`}
+          className={`flex flex-col items-center gap-1.5 group flex-1 ${activeTab === 'history' ? 'text-sky-400' : 'text-slate-600 hover:text-slate-400'}`}
         >
-          <div className={`w-12 h-8 flex items-center justify-center rounded-2xl transition-all ${activeTab === 'history' ? 'bg-sky-400/10' : ''}`}>
+          <div className={`w-12 h-8 flex items-center justify-center rounded-2xl ${activeTab === 'history' ? 'bg-sky-400/10' : ''}`}>
             <div className="relative">
               <i className={`fas fa-clock-rotate-left text-lg ${activeTab === 'history' ? 'scale-110' : ''}`}></i>
               {scans.length > 0 && <div className="absolute -top-1 -right-1 w-2 h-2 bg-sky-500 rounded-full border-2 border-slate-950"></div>}

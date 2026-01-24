@@ -158,7 +158,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
     <div className="relative aspect-square overflow-hidden rounded-[3rem] bg-slate-950 border-4 border-slate-800 shadow-2xl">
       <video
         ref={videoRef}
-        className={`w-full h-full object-cover transition-opacity duration-700 ${isActive && !isLoading && !error ? 'opacity-100' : 'opacity-0'}`}
+        className={`w-full h-full object-cover ${isActive && !isLoading && !error ? 'opacity-100' : 'opacity-0'}`}
         playsInline
         muted
       />
@@ -169,23 +169,11 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
           {hasTorch && (
             <button 
               onClick={toggleTorch}
-              className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${isTorchOn ? 'bg-yellow-400 text-slate-900 shadow-[0_0_20px_rgba(250,204,21,0.5)]' : 'bg-black/50 text-white backdrop-blur-md border border-white/10'}`}
+              className={`w-12 h-12 rounded-full flex items-center justify-center ${isTorchOn ? 'bg-yellow-400 text-slate-900 shadow-[0_0_20px_rgba(250,204,21,0.5)]' : 'bg-black/50 text-white backdrop-blur-md border border-white/10'}`}
             >
-              <i className="fas fa-lightbulb"></i>
+              <i className="fas fa-bolt"></i>
             </button>
           )}
-        </div>
-      )}
-
-      {/* Scanning focus guides */}
-      {isActive && !isLoading && !error && (
-        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-          <div className="w-2/3 h-2/3 border-2 border-sky-400/30 rounded-[2rem] relative">
-            <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-sky-400 rounded-tl-lg"></div>
-            <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-sky-400 rounded-tr-lg"></div>
-            <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-sky-400 rounded-bl-lg"></div>
-            <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-sky-400 rounded-br-lg"></div>
-          </div>
         </div>
       )}
 
@@ -214,7 +202,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
           <p className="text-xs text-slate-400 leading-relaxed max-w-[220px] mb-6">{error.message}</p>
           <button 
             onClick={() => { setError(null); startCamera(); }}
-            className="px-6 py-2 bg-sky-500 hover:bg-sky-400 text-white rounded-full text-[10px] font-bold uppercase tracking-widest transition-all"
+            className="px-6 py-2 bg-sky-500 hover:bg-sky-400 text-white rounded-full text-[10px] font-bold uppercase tracking-widest"
           >
             Retry
           </button>
