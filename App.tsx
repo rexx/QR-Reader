@@ -23,6 +23,7 @@ const App: React.FC = () => {
   const [editNameValue, setEditNameValue] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   const isCameraActive = activeTab === 'scanner' && !selectedResult;
 
@@ -40,7 +41,6 @@ const App: React.FC = () => {
   };
 
   const handleScan = useCallback((data: string) => {
-    // 額外檢查：如果內容為空或僅包含空白字元，則不處理
     if (!data || data.trim() === '') return;
     
     if (data === lastScanned) return;
@@ -79,13 +79,64 @@ const App: React.FC = () => {
           if (code && code.data && code.data.trim() !== '') {
             handleScan(code.data);
           } else {
-            alert("No valid QR Code detected in this image. Please try another one.");
+            alert("No valid QR Code detected in this image.");
           }
         }
       };
       img.src = event.target?.result as string;
     };
     reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleExportHistory = () => {
+    if (scans.length === 0) {
+      alert("No history to export.");
+      return;
+    }
+    const dataStr = JSON.stringify(scans, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+    
+    const exportFileDefaultName = `smart-lens-history-${new Date().toISOString().split('T')[0]}.json`;
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+  };
+
+  const handleImportHistory = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const importedData = JSON.parse(event.target?.result as string);
+        if (Array.isArray(importedData)) {
+          // Basic validation and merge
+          setScans(prev => {
+            const existingIds = new Set(prev.map(s => s.id));
+            const newRecords = importedData.filter(item => 
+              item.id && item.data && !existingIds.has(item.id)
+            );
+            
+            if (newRecords.length === 0) {
+              alert("No new records found in the backup file.");
+              return prev;
+            }
+            
+            alert(`Successfully imported ${newRecords.length} records!`);
+            return [...newRecords, ...prev].sort((a, b) => b.timestamp - a.timestamp);
+          });
+        } else {
+          alert("Invalid backup file format.");
+        }
+      } catch (err) {
+        alert("Error parsing backup file.");
+      }
+    };
+    reader.readAsText(file);
     e.target.value = '';
   };
 
@@ -257,7 +308,7 @@ const App: React.FC = () => {
               </div>
             ) : (
               <div className="flex-1 flex flex-col overflow-hidden pt-6">
-                <div className="shrink-0 mb-6 px-4">
+                <div className="shrink-0 mb-4 px-4">
                   <div className="relative group">
                     <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm group-focus-within:text-sky-400"></i>
                     <input
@@ -266,6 +317,31 @@ const App: React.FC = () => {
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="w-full bg-slate-900 border border-slate-800 rounded-2xl py-3.5 pl-11 pr-10 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500/30"
+                    />
+                  </div>
+                </div>
+
+                <div className="shrink-0 px-4 mb-4 flex items-center justify-between">
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">History Management</h3>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => importInputRef.current?.click()}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-[9px] font-bold uppercase tracking-widest text-slate-400 hover:text-sky-400 hover:border-sky-400/30 transition-all active:scale-95"
+                    >
+                      <i className="fas fa-file-import"></i> Import
+                    </button>
+                    <button 
+                      onClick={handleExportHistory}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-[9px] font-bold uppercase tracking-widest text-slate-400 hover:text-sky-400 hover:border-sky-400/30 transition-all active:scale-95"
+                    >
+                      <i className="fas fa-file-export"></i> Export
+                    </button>
+                    <input 
+                      type="file" 
+                      ref={importInputRef} 
+                      onChange={handleImportHistory} 
+                      accept=".json,application/json" 
+                      className="hidden" 
                     />
                   </div>
                 </div>
