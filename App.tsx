@@ -22,6 +22,7 @@ const App: React.FC = () => {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isStatsExpanded, setIsStatsExpanded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
 
@@ -29,6 +30,18 @@ const App: React.FC = () => {
 
   useEffect(() => {
     localStorage.setItem(SCAN_HISTORY_KEY, JSON.stringify(scans));
+  }, [scans]);
+
+  const stats = useMemo(() => {
+    const now = Date.now();
+    const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
+    
+    const total = scans.length;
+    const urls = scans.filter(s => s.type === 'url').length;
+    const today = scans.filter(s => s.timestamp > twentyFourHoursAgo).length;
+    const unique = new Set(scans.map(s => s.data)).size;
+
+    return { total, urls, today, unique };
   }, [scans]);
 
   const handleTabChange = (tab: 'upload' | 'scanner' | 'history') => {
@@ -114,7 +127,6 @@ const App: React.FC = () => {
       try {
         const importedData = JSON.parse(event.target?.result as string);
         if (Array.isArray(importedData)) {
-          // Basic validation and merge
           setScans(prev => {
             const existingIds = new Set(prev.map(s => s.id));
             const newRecords = importedData.filter(item => 
@@ -308,45 +320,83 @@ const App: React.FC = () => {
               </div>
             ) : (
               <div className="flex-1 flex flex-col overflow-hidden pt-6">
-                <div className="shrink-0 mb-4 px-4">
-                  <div className="relative group">
-                    <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm group-focus-within:text-sky-400"></i>
-                    <input
-                      type="text"
-                      placeholder="Search history..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-2xl py-3.5 pl-11 pr-10 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500/30"
-                    />
+                <div className="shrink-0 px-4">
+                  {/* Integrated Control Row */}
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="relative group flex-1">
+                      <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm group-focus-within:text-sky-400"></i>
+                      <input
+                        type="text"
+                        placeholder="Search..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-2xl py-3 pl-11 pr-4 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500/30 transition-none"
+                      />
+                    </div>
+                    
+                    <div className="flex gap-1.5 shrink-0">
+                      {/* Stats Toggle Button */}
+                      <button 
+                        onClick={() => setIsStatsExpanded(!isStatsExpanded)}
+                        className={`flex items-center justify-center w-11 h-11 rounded-2xl border active:scale-95 ${isStatsExpanded ? 'bg-sky-500 border-sky-400 text-white shadow-lg shadow-sky-500/20' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-sky-400 hover:border-sky-400/30'}`}
+                        title="Statistics"
+                      >
+                        <i className="fas fa-chart-simple text-sm"></i>
+                      </button>
+                      
+                      {/* Import Button */}
+                      <button 
+                        onClick={() => importInputRef.current?.click()}
+                        className="flex items-center justify-center w-11 h-11 rounded-2xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-sky-400 hover:border-sky-400/30 active:scale-95"
+                        title="Import"
+                      >
+                        <i className="fas fa-file-import text-sm"></i>
+                      </button>
+                      
+                      {/* Export Button */}
+                      <button 
+                        onClick={handleExportHistory}
+                        className="flex items-center justify-center w-11 h-11 rounded-2xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-sky-400 hover:border-sky-400/30 active:scale-95"
+                        title="Export"
+                      >
+                        <i className="fas fa-file-export text-sm"></i>
+                      </button>
+                    </div>
                   </div>
-                </div>
 
-                <div className="shrink-0 px-4 mb-4 flex items-center justify-between">
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">History Management</h3>
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => importInputRef.current?.click()}
-                      className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-[9px] font-bold uppercase tracking-widest text-slate-400 hover:text-sky-400 hover:border-sky-400/30 transition-all active:scale-95"
-                    >
-                      <i className="fas fa-file-import"></i> Import
-                    </button>
-                    <button 
-                      onClick={handleExportHistory}
-                      className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-[9px] font-bold uppercase tracking-widest text-slate-400 hover:text-sky-400 hover:border-sky-400/30 transition-all active:scale-95"
-                    >
-                      <i className="fas fa-file-export"></i> Export
-                    </button>
-                    <input 
-                      type="file" 
-                      ref={importInputRef} 
-                      onChange={handleImportHistory} 
-                      accept=".json,application/json" 
-                      className="hidden" 
-                    />
-                  </div>
+                  {/* Expanded Statistics Dashboard - No Animation */}
+                  {isStatsExpanded && (
+                    <div className="mb-4">
+                      <div className="grid grid-cols-4 gap-2 bg-slate-900/40 p-3 rounded-[1.5rem] border border-slate-800/50 backdrop-blur-sm">
+                        <div className="flex flex-col items-center justify-center text-center p-1">
+                          <span className="text-lg font-black text-white">{stats.total}</span>
+                          <span className="text-[7px] uppercase font-bold text-slate-500 tracking-tighter">Total</span>
+                        </div>
+                        <div className="flex flex-col items-center justify-center text-center p-1 border-l border-slate-800/50">
+                          <span className="text-lg font-black text-indigo-400">{stats.urls}</span>
+                          <span className="text-[7px] uppercase font-bold text-slate-500 tracking-tighter">Links</span>
+                        </div>
+                        <div className="flex flex-col items-center justify-center text-center p-1 border-l border-slate-800/50">
+                          <span className="text-lg font-black text-amber-400">{stats.today}</span>
+                          <span className="text-[7px] uppercase font-bold text-slate-500 tracking-tighter">Today</span>
+                        </div>
+                        <div className="flex flex-col items-center justify-center text-center p-1 border-l border-slate-800/50">
+                          <span className="text-lg font-black text-emerald-400">{stats.unique}</span>
+                          <span className="text-[7px] uppercase font-bold text-slate-500 tracking-tighter">Unique</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex-1 scrollable-y pb-32 px-4">
+                  <input 
+                    type="file" 
+                    ref={importInputRef} 
+                    onChange={handleImportHistory} 
+                    accept=".json,application/json" 
+                    className="hidden" 
+                  />
                   {scans.length === 0 ? (
                     <div className="text-center py-20 bg-slate-900/40 rounded-[2.5rem] border border-dashed border-slate-800">
                       <div className="w-20 h-20 rounded-full bg-slate-900 flex items-center justify-center mx-auto mb-6 border border-slate-800 shadow-xl">
@@ -394,7 +444,7 @@ const App: React.FC = () => {
                             </div>
                             <button 
                               onClick={(e) => handleDeleteScan(scan.id, e)}
-                              className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-slate-700 hover:text-red-400 hover:bg-red-400/10 active:scale-90 transition-all"
+                              className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-slate-700 hover:text-red-400 hover:bg-red-400/10 active:scale-90 transition-none"
                             >
                               <i className="far fa-trash-can text-sm"></i>
                             </button>
