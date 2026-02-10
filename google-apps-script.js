@@ -1,5 +1,5 @@
 /**
- * Smart Lens: Google Sheets Sync Backend (Secure Version)
+ * Smart Lens: Google Sheets Sync Backend (Secure Version - Fixed)
  */
 
 // ⚠️ 請修改此密鑰，並同步在 App 設定中填入相同的值
@@ -17,10 +17,18 @@ function doGet(e) {
   if (sheet.getLastRow() < 2) return ContentService.createTextOutput(JSON.stringify([])).setMimeType(ContentService.MimeType.JSON);
   
   var rows = sheet.getDataRange().getValues();
-  rows.shift(); 
+  rows.shift(); // 移除標題列
   
   var result = rows.map(function(row) {
-    return { id: row[0], timestamp: new Date(row[1]).getTime(), name: row[2], data: row[3], type: row[4] };
+    // row[1] 現在是 Date 物件或有效日期值
+    var ts = row[1] instanceof Date ? row[1].getTime() : new Date(row[1]).getTime();
+    return { 
+      id: row[0], 
+      timestamp: isNaN(ts) ? Date.now() : ts, 
+      name: row[2] === "N/A" ? "" : row[2], // 兼容舊資料清理
+      data: row[3], 
+      type: row[4] 
+    };
   });
   
   result.sort(function(a, b) { return b.timestamp - a.timestamp; });
@@ -46,7 +54,15 @@ function doPost(e) {
     }
   }
 
-  var rowData = [data.id, new Date(data.timestamp).toLocaleString(), data.name || "N/A", data.data, data.type];
+  // 1. 使用 Date 物件：Google Sheets 會自動識別並正確顯示日期格式
+  // 2. Name: 如果沒有值就留空，不再使用 "N/A"
+  var rowData = [
+    data.id, 
+    new Date(Number(data.timestamp)), 
+    data.name || "", 
+    data.data, 
+    data.type
+  ];
 
   if (foundIndex > -1) {
     sheet.getRange(foundIndex, 1, 1, 5).setValues([rowData]);

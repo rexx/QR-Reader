@@ -252,13 +252,32 @@ const App: React.FC = () => {
                 <button onClick={() => setSelectedResult(null)} className="flex items-center gap-2 text-slate-500 mb-6 text-[10px] font-bold uppercase"><i className="fas fa-chevron-left"></i> Back</button>
                 <div className="flex-1 scrollable-y pb-32">
                   <div className="p-6 rounded-[2.3rem] bg-slate-900 border border-slate-800">
-                    <div onClick={() => !selectedResult.isCloudOnly && setIsEditingName(true)} className="flex items-center gap-2 cursor-pointer mb-4">
-                      {isEditingName ? <input autoFocus value={editNameValue} onChange={e => setEditNameValue(e.target.value)} onBlur={() => handleUpdateName(selectedResult.id, editNameValue)} className="bg-slate-950 border border-sky-500 rounded px-2 py-1 text-sm w-full" /> : <h2 className="text-base font-bold text-slate-100">{selectedResult.name || 'Untitled Scan'}</h2>}
+                    <div 
+                      onClick={() => !selectedResult.isCloudOnly && (setIsEditingName(true), setEditNameValue(selectedResult.name || ''))} 
+                      className="flex items-center gap-2 cursor-pointer mb-4"
+                    >
+                      {isEditingName ? (
+                        <input 
+                          autoFocus 
+                          value={editNameValue} 
+                          onChange={e => setEditNameValue(e.target.value)} 
+                          onBlur={() => handleUpdateName(selectedResult.id, editNameValue)} 
+                          onKeyDown={e => e.key === 'Enter' && handleUpdateName(selectedResult.id, editNameValue)}
+                          className="bg-slate-950 border border-sky-500 rounded px-2 py-1 text-sm w-full outline-none" 
+                        />
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-base font-bold text-slate-100">{selectedResult.name || 'Untitled Scan'}</h2>
+                          {!selectedResult.isCloudOnly && <i className="fas fa-pencil-alt text-[10px] text-slate-600"></i>}
+                        </div>
+                      )}
                     </div>
-                    <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 break-all text-xs font-mono mb-6 text-sky-200">{selectedResult.data}</div>
+                    <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 break-all text-xs font-mono mb-6 text-sky-200 leading-relaxed">
+                      {selectedResult.data}
+                    </div>
                     <div className="flex gap-3">
-                      <button onClick={() => { navigator.clipboard.writeText(selectedResult.data); alert("Copied!"); }} className="flex-1 py-3 rounded-xl bg-slate-800 text-xs font-bold">Copy</button>
-                      {selectedResult.type === 'url' && <button onClick={() => window.open(selectedResult.data, '_blank')} className="flex-1 py-3 rounded-xl bg-sky-600 text-xs font-bold">Open</button>}
+                      <button onClick={() => { navigator.clipboard.writeText(selectedResult.data); alert("Copied!"); }} className="flex-1 py-3 rounded-xl bg-slate-800 text-xs font-bold active:scale-95 transition-all">Copy</button>
+                      {selectedResult.type === 'url' && <button onClick={() => window.open(selectedResult.data, '_blank')} className="flex-1 py-3 rounded-xl bg-sky-600 text-xs font-bold active:scale-95 transition-all">Open</button>}
                     </div>
                   </div>
                 </div>
@@ -266,23 +285,53 @@ const App: React.FC = () => {
             ) : (
               <div className="flex-1 flex flex-col overflow-hidden pt-6">
                 <div className="px-4 mb-4 flex gap-2">
-                  <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="flex-1 bg-slate-900 border border-slate-800 rounded-xl py-2 px-4 text-sm" />
-                  <button onClick={() => setIsStatsExpanded(!isStatsExpanded)} className="w-10 h-10 bg-slate-900 rounded-xl border border-slate-800"><i className="fas fa-chart-bar text-xs"></i></button>
-                  <button onClick={syncAllPending} className="w-10 h-10 bg-slate-900 rounded-xl border border-slate-800"><i className="fas fa-sync text-xs"></i></button>
+                  <div className="relative flex-1">
+                    <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 text-xs"></i>
+                    <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 pl-9 pr-4 text-sm outline-none focus:border-sky-500/50" />
+                  </div>
+                  <button onClick={() => setIsStatsExpanded(!isStatsExpanded)} className={`w-10 h-10 rounded-xl border transition-all ${isStatsExpanded ? 'bg-sky-500 border-sky-400 text-white' : 'bg-slate-900 border-slate-800 text-slate-500'}`}><i className="fas fa-chart-bar text-xs"></i></button>
+                  <button onClick={syncAllPending} disabled={isSyncing} className="w-10 h-10 bg-slate-900 rounded-xl border border-slate-800 text-slate-500 disabled:opacity-30"><i className={`fas ${isSyncing ? 'fa-circle-notch animate-spin' : 'fa-sync'} text-xs`}></i></button>
                 </div>
-                {isStatsExpanded && <div className="px-4 mb-4 grid grid-cols-4 gap-2 text-center text-[10px] uppercase font-bold text-slate-500"><div>{stats.total}<br/>Local</div><div>{stats.synced}<br/>Sync</div><div>{stats.today}<br/>Today</div><div>{stats.urls}<br/>Link</div></div>}
+                {isStatsExpanded && (
+                  <div className="px-4 mb-4 grid grid-cols-4 gap-2 bg-slate-900/50 p-3 rounded-2xl border border-slate-800 mx-4">
+                    <div className="text-center"><p className="text-lg font-black text-white">{stats.total}</p><p className="text-[7px] uppercase font-bold text-slate-500">Local</p></div>
+                    <div className="text-center border-l border-slate-800"><p className="text-lg font-black text-emerald-400">{stats.synced}</p><p className="text-[7px] uppercase font-bold text-slate-500">Sync</p></div>
+                    <div className="text-center border-l border-slate-800"><p className="text-lg font-black text-amber-400">{stats.today}</p><p className="text-[7px] uppercase font-bold text-slate-500">Today</p></div>
+                    <div className="text-center border-l border-slate-800"><p className="text-lg font-black text-indigo-400">{stats.urls}</p><p className="text-[7px] uppercase font-bold text-slate-500">Link</p></div>
+                  </div>
+                )}
                 <div className="flex-1 scrollable-y px-4 pb-32 space-y-3">
-                  {allVisibleScans.map(scan => (
-                    <div key={scan.id} onClick={() => setSelectedResult(scan)} className={`p-4 rounded-2xl border transition-all ${scan.isCloudOnly ? 'bg-slate-950 border-dashed border-slate-800' : 'bg-slate-900 border-slate-800'}`}>
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-sky-400"><i className={scan.type === 'url' ? 'fas fa-link' : 'fas fa-font'}></i></div>
-                        <div className="flex-1 min-w-0"><p className="text-xs font-bold truncate">{scan.name || scan.data}</p><p className="text-[10px] text-slate-500">{new Date(scan.timestamp).toLocaleDateString()}</p></div>
-                        {scan.syncStatus === 'synced' && <i className="fas fa-check-circle text-emerald-500 text-[10px]"></i>}
-                        {!scan.isCloudOnly && <button onClick={e => handleDeleteScan(scan.id, e)} className="text-slate-700 hover:text-red-500"><i className="fas fa-trash"></i></button>}
-                      </div>
+                  {allVisibleScans.length === 0 ? (
+                    <div className="py-20 text-center opacity-30 flex flex-col items-center">
+                      <i className="fas fa-history text-4xl mb-4"></i>
+                      <p className="text-xs font-bold uppercase tracking-widest">No records found</p>
                     </div>
-                  ))}
-                  {syncUrl && <button onClick={fetchCloudData} className="w-full p-4 border border-dashed border-slate-800 rounded-2xl text-[10px] font-bold uppercase text-slate-500">Load More from Cloud</button>}
+                  ) : (
+                    allVisibleScans.map(scan => (
+                      <div key={scan.id} onClick={() => setSelectedResult(scan)} className={`p-4 rounded-2xl border transition-all active:scale-[0.98] cursor-pointer ${scan.isCloudOnly ? 'bg-slate-950 border-dashed border-slate-800 opacity-70' : 'bg-slate-900 border-slate-800 hover:border-slate-700'}`}>
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${scan.type === 'url' ? 'bg-indigo-500/10 text-indigo-400' : 'bg-amber-500/10 text-amber-400'}`}>
+                            <i className={scan.isCloudOnly ? 'fas fa-cloud' : (scan.type === 'url' ? 'fas fa-link' : 'fas fa-font')}></i>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold truncate pr-2">{scan.name || scan.data}</p>
+                            <p className="text-[10px] text-slate-500 mt-0.5">{new Date(scan.timestamp).toLocaleDateString()}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {scan.syncStatus === 'synced' && <i className="fas fa-check-circle text-emerald-500 text-[10px]" title="Synced"></i>}
+                            {scan.syncStatus === 'syncing' && <i className="fas fa-circle-notch animate-spin text-sky-400 text-[10px]"></i>}
+                            {!scan.isCloudOnly && <button onClick={e => handleDeleteScan(scan.id, e)} className="w-8 h-8 rounded-full flex items-center justify-center text-slate-700 hover:text-red-500 hover:bg-red-500/10"><i className="fas fa-trash text-xs"></i></button>}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                  {syncUrl && (
+                    <button onClick={fetchCloudData} disabled={isSyncing} className="w-full p-4 border border-dashed border-slate-800 rounded-2xl text-[10px] font-bold uppercase text-slate-500 hover:text-sky-400 hover:border-sky-500/50 transition-all flex items-center justify-center gap-2">
+                      <i className={`fas ${isSyncing ? 'fa-circle-notch animate-spin' : 'fa-search'}`}></i>
+                      {isSyncing ? 'Fetching...' : 'Load More from Cloud'}
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -291,9 +340,9 @@ const App: React.FC = () => {
       </main>
 
       <nav className="shrink-0 bg-slate-950/90 border-t border-slate-800/50 px-4 pt-4 pb-10 flex justify-around">
-        <button onClick={() => handleTabChange('upload')} className={`flex flex-col items-center gap-1 flex-1 ${activeTab === 'upload' ? 'text-sky-400' : 'text-slate-600'}`}><i className="fas fa-file-upload"></i><span className="text-[8px] font-bold uppercase">Upload</span></button>
-        <button onClick={() => handleTabChange('scanner')} className={`flex flex-col items-center gap-1 flex-1 ${activeTab === 'scanner' ? 'text-sky-400' : 'text-slate-600'}`}><i className="fas fa-camera"></i><span className="text-[8px] font-bold uppercase">Camera</span></button>
-        <button onClick={() => handleTabChange('history')} className={`flex flex-col items-center gap-1 flex-1 ${activeTab === 'history' ? 'text-sky-400' : 'text-slate-600'}`}><i className="fas fa-history"></i><span className="text-[8px] font-bold uppercase">History</span></button>
+        <button onClick={() => handleTabChange('upload')} className={`flex flex-col items-center gap-1 flex-1 transition-all ${activeTab === 'upload' ? 'text-sky-400' : 'text-slate-600'}`}><i className="fas fa-file-upload text-lg"></i><span className="text-[8px] font-bold uppercase">Upload</span></button>
+        <button onClick={() => handleTabChange('scanner')} className={`flex flex-col items-center gap-1 flex-1 transition-all ${activeTab === 'scanner' ? 'text-sky-400' : 'text-slate-600'}`}><i className="fas fa-camera text-lg"></i><span className="text-[8px] font-bold uppercase">Camera</span></button>
+        <button onClick={() => handleTabChange('history')} className={`flex flex-col items-center gap-1 flex-1 transition-all ${activeTab === 'history' ? 'text-sky-400' : 'text-slate-600'}`}><i className="fas fa-history text-lg"></i><span className="text-[8px] font-bold uppercase">History</span></button>
       </nav>
     </div>
   );
