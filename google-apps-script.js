@@ -25,7 +25,7 @@ function doGet(e) {
     return { 
       id: row[0], 
       timestamp: isNaN(ts) ? Date.now() : ts, 
-      name: row[2] === "N/A" ? "" : row[2], // 兼容舊資料清理
+      name: row[2], 
       data: row[3], 
       type: row[4] 
     };
@@ -55,7 +55,7 @@ function doPost(e) {
   }
 
   // 1. 使用 Date 物件：Google Sheets 會自動識別並正確顯示日期格式
-  // 2. Name: 如果沒有值就留空，不再使用 "N/A"
+  // 2. Name: 如果沒有值就留空
   var rowData = [
     data.id, 
     new Date(Number(data.timestamp)), 
