@@ -20,65 +20,8 @@
 | **D. 內容更新** | 本地修改名稱。 | **Update**: POST 時帶入相同 ID，雲端搜尋對應列並更新。 |
 | **E. 雲端缺失** | 雲端列被手動刪除。 | **Re-sync**: 同步檢查時若發現 ID 消失，自動重新上傳。 |
 
-## 4. 增強版 Google Apps Script 代碼
-
-```javascript
-/** 處理下載請求：回傳所有歷史紀錄 */
-function doGet() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  if (sheet.getLastRow() < 2) return ContentService.createTextOutput(JSON.stringify([])).setMimeType(ContentService.MimeType.JSON);
-  
-  var rows = sheet.getDataRange().getValues();
-  var headers = rows.shift(); 
-  var result = rows.map(function(row) {
-    return {
-      id: row[0],
-      timestamp: new Date(row[1]).getTime(),
-      name: row[2],
-      data: row[3],
-      type: row[4]
-    };
-  });
-  // 回傳依照時間倒序排列
-  result.sort((a, b) => b.timestamp - a.timestamp);
-  return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
-}
-
-/** 處理寫入或更新請求 */
-function doPost(e) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  var data = JSON.parse(e.postData.contents);
-  
-  if (sheet.getLastRow() === 0) {
-    sheet.appendRow(["ID", "Timestamp", "Name", "Data", "Type"]);
-  }
-  
-  var rows = sheet.getDataRange().getValues();
-  var foundIndex = -1;
-  for (var i = 0; i < rows.length; i++) {
-    if (rows[i][0] === data.id) {
-      foundIndex = i + 1;
-      break;
-    }
-  }
-
-  var rowData = [
-    data.id,
-    new Date(data.timestamp).toLocaleString(),
-    data.name || "N/A",
-    data.data,
-    data.type
-  ];
-
-  if (foundIndex > -1) {
-    sheet.getRange(foundIndex, 1, 1, 5).setValues([rowData]);
-    return ContentService.createTextOutput(JSON.stringify({"status": "updated"})).setMimeType(ContentService.MimeType.JSON);
-  } else {
-    sheet.appendRow(rowData);
-    return ContentService.createTextOutput(JSON.stringify({"status": "success"})).setMimeType(ContentService.MimeType.JSON);
-  }
-}
-```
+## 4. Google Apps Script 代碼
+代碼已抽出至獨立檔案：`google-apps-script.js`。請將該檔案內容貼入 Google Apps Script 編輯器中進行部署。
 
 ## 5. 本地容量管理邏輯 (LIFO + Sync Check)
 
