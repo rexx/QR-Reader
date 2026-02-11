@@ -20,12 +20,15 @@ function doGet(e) {
   rows.shift(); // 移除標題列
   
   var result = rows.map(function(row) {
-    // row[1] 現在是 Date 物件或有效日期值
     var ts = row[1] instanceof Date ? row[1].getTime() : new Date(row[1]).getTime();
+    
+    // 強制將名稱轉換為字串，避免 0 被視為 false
+    var nameVal = (row[2] !== null && row[2] !== undefined) ? String(row[2]) : "";
+    
     return { 
       id: row[0], 
       timestamp: isNaN(ts) ? Date.now() : ts, 
-      name: row[2], 
+      name: nameVal, 
       data: row[3], 
       type: row[4] 
     };
@@ -54,12 +57,13 @@ function doPost(e) {
     }
   }
 
-  // 1. 使用 Date 物件：Google Sheets 會自動識別並正確顯示日期格式
-  // 2. Name: 如果沒有值就留空
+  // 使用明確的 null 檢查，允許 "0" 字串或 0 數字
+  var safeName = (data.name !== null && data.name !== undefined && data.name !== "") ? String(data.name) : "";
+
   var rowData = [
     data.id, 
     new Date(Number(data.timestamp)), 
-    data.name || "", 
+    safeName, 
     data.data, 
     data.type
   ];

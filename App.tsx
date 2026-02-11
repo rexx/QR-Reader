@@ -182,7 +182,11 @@ const App: React.FC = () => {
     const combined = [...scans, ...cloudScans].sort((a, b) => b.timestamp - a.timestamp);
     if (!searchQuery.trim()) return combined;
     const query = searchQuery.toLowerCase();
-    return combined.filter(scan => (scan.name?.toLowerCase().includes(query)) || (scan.data.toLowerCase().includes(query)));
+    return combined.filter(scan => {
+      const nameMatch = (scan.name !== undefined && scan.name !== null) ? String(scan.name).toLowerCase().includes(query) : false;
+      const dataMatch = scan.data.toLowerCase().includes(query);
+      return nameMatch || dataMatch;
+    });
   }, [scans, cloudScans, searchQuery]);
 
   return (
@@ -253,7 +257,7 @@ const App: React.FC = () => {
                 <div className="flex-1 scrollable-y pb-32">
                   <div className="p-6 rounded-[2.3rem] bg-slate-900 border border-slate-800">
                     <div 
-                      onClick={() => !selectedResult.isCloudOnly && (setIsEditingName(true), setEditNameValue(selectedResult.name || ''))} 
+                      onClick={() => !selectedResult.isCloudOnly && (setIsEditingName(true), setEditNameValue(selectedResult.name !== undefined && selectedResult.name !== null ? String(selectedResult.name) : ''))} 
                       className="flex items-center gap-2 cursor-pointer mb-4"
                     >
                       {isEditingName ? (
@@ -267,7 +271,9 @@ const App: React.FC = () => {
                         />
                       ) : (
                         <div className="flex items-center gap-2">
-                          <h2 className="text-base font-bold text-slate-100">{selectedResult.name || 'Untitled Scan'}</h2>
+                          <h2 className="text-base font-bold text-slate-100">
+                            {(selectedResult.name !== undefined && selectedResult.name !== null && selectedResult.name !== "") ? String(selectedResult.name) : 'Untitled Scan'}
+                          </h2>
                           {!selectedResult.isCloudOnly && <i className="fas fa-pencil-alt text-[10px] text-slate-600"></i>}
                         </div>
                       )}
@@ -314,7 +320,9 @@ const App: React.FC = () => {
                             <i className={scan.isCloudOnly ? 'fas fa-cloud' : (scan.type === 'url' ? 'fas fa-link' : 'fas fa-font')}></i>
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold truncate pr-2">{scan.name || scan.data}</p>
+                            <p className="text-xs font-bold truncate pr-2">
+                              {(scan.name !== undefined && scan.name !== null && scan.name !== "") ? String(scan.name) : scan.data}
+                            </p>
                             <p className="text-[10px] text-slate-500 mt-0.5">{new Date(scan.timestamp).toLocaleDateString()}</p>
                           </div>
                           <div className="flex items-center gap-2">
