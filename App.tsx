@@ -189,6 +189,11 @@ const App: React.FC = () => {
     });
   }, [scans, cloudScans, searchQuery]);
 
+  const formatTimestamp = (ts: number) => {
+    const date = new Date(ts);
+    return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  };
+
   return (
     <div className="h-screen w-screen max-w-md mx-auto flex flex-col bg-slate-950 text-slate-100 shadow-2xl relative border-x border-slate-800 overflow-hidden">
       <header className="p-6 pb-4 border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-md z-30 shrink-0">
@@ -256,27 +261,30 @@ const App: React.FC = () => {
                 <button onClick={() => setSelectedResult(null)} className="flex items-center gap-2 text-slate-500 mb-6 text-[10px] font-bold uppercase"><i className="fas fa-chevron-left"></i> Back</button>
                 <div className="flex-1 scrollable-y pb-32">
                   <div className="p-6 rounded-[2.3rem] bg-slate-900 border border-slate-800">
-                    <div 
-                      onClick={() => !selectedResult.isCloudOnly && (setIsEditingName(true), setEditNameValue(selectedResult.name !== undefined && selectedResult.name !== null ? String(selectedResult.name) : ''))} 
-                      className="flex items-center gap-2 cursor-pointer mb-4"
-                    >
-                      {isEditingName ? (
-                        <input 
-                          autoFocus 
-                          value={editNameValue} 
-                          onChange={e => setEditNameValue(e.target.value)} 
-                          onBlur={() => handleUpdateName(selectedResult.id, editNameValue)} 
-                          onKeyDown={e => e.key === 'Enter' && handleUpdateName(selectedResult.id, editNameValue)}
-                          className="bg-slate-950 border border-sky-500 rounded px-2 py-1 text-sm w-full outline-none" 
-                        />
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <h2 className="text-base font-bold text-slate-100">
-                            {(selectedResult.name !== undefined && selectedResult.name !== null && selectedResult.name !== "") ? String(selectedResult.name) : 'Untitled Scan'}
-                          </h2>
-                          {!selectedResult.isCloudOnly && <i className="fas fa-pencil-alt text-[10px] text-slate-600"></i>}
-                        </div>
-                      )}
+                    <div className="flex justify-between items-start mb-4">
+                      <div 
+                        onClick={() => !selectedResult.isCloudOnly && (setIsEditingName(true), setEditNameValue(selectedResult.name !== undefined && selectedResult.name !== null ? String(selectedResult.name) : ''))} 
+                        className="flex-1 flex items-center gap-2 cursor-pointer"
+                      >
+                        {isEditingName ? (
+                          <input 
+                            autoFocus 
+                            value={editNameValue} 
+                            onChange={e => setEditNameValue(e.target.value)} 
+                            onBlur={() => handleUpdateName(selectedResult.id, editNameValue)} 
+                            onKeyDown={e => e.key === 'Enter' && handleUpdateName(selectedResult.id, editNameValue)}
+                            className="bg-slate-950 border border-sky-500 rounded px-2 py-1 text-sm w-full outline-none" 
+                          />
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <h2 className="text-base font-bold text-slate-100">
+                              {(selectedResult.name !== undefined && selectedResult.name !== null && selectedResult.name !== "") ? String(selectedResult.name) : 'Untitled Scan'}
+                            </h2>
+                            {!selectedResult.isCloudOnly && <i className="fas fa-pencil-alt text-[10px] text-slate-600"></i>}
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">{formatTimestamp(selectedResult.timestamp)}</span>
                     </div>
                     <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 break-all text-xs font-mono mb-6 text-sky-200 leading-relaxed">
                       {selectedResult.data}
@@ -323,7 +331,7 @@ const App: React.FC = () => {
                             <p className="text-xs font-bold truncate pr-2">
                               {(scan.name !== undefined && scan.name !== null && scan.name !== "") ? String(scan.name) : scan.data}
                             </p>
-                            <p className="text-[10px] text-slate-500 mt-0.5">{new Date(scan.timestamp).toLocaleDateString()}</p>
+                            <p className="text-[10px] text-slate-500 mt-0.5">{formatTimestamp(scan.timestamp)}</p>
                           </div>
                           <div className="flex items-center gap-2">
                             {scan.syncStatus === 'synced' && <i className="fas fa-check-circle text-emerald-500 text-[10px]" title="Synced"></i>}
