@@ -142,7 +142,7 @@ const App: React.FC = () => {
     let pushCount = 0;
     let addedFromCloud = 0;
     let updatedFromCloud = 0;
-    let markedAsPending = 0;
+    let markedAsPendingCount = 0;
 
     try {
       // 1. 先推播目前已知的待處理項
@@ -159,35 +159,34 @@ const App: React.FC = () => {
       
       const cloudData = await response.json();
       if (Array.isArray(cloudData)) {
-        const cloudItems = cloudData.map((item: any) => ({ ...item, syncStatus: 'synced' }));
+        const cloudItems: ScanResult[] = cloudData.map((item: any) => ({ ...item, syncStatus: 'synced' }));
         const cloudIds = new Set(cloudItems.map(item => item.id));
 
-        setScans(prev => {
-          const newScans = prev.map(localItem => {
-            // 如果本地認為已同步，但雲端沒這筆 ID -> 標記回待同步 (使用者可能在 Sheet 刪掉了)
-            if (localItem.syncStatus === 'synced' && !cloudIds.has(localItem.id)) {
-              markedAsPending++;
-              return { ...localItem, syncStatus: 'pending' } as ScanResult;
-            }
-            
-            // 如果兩邊都有，以雲端最新內容為準
-            const cloudVersion = cloudItems.find(c => c.id === localItem.id);
-            if (cloudVersion) {
-              updatedFromCloud++;
-              return cloudVersion;
-            }
+        // 3. 在外部計算 merge 結果
+        const newScans = scans.map(localItem => {
+          // 偵測被手動刪除：本地認為已同步但雲端找不到 ID
+          if (localItem.syncStatus === 'synced' && !cloudIds.has(localItem.id)) {
+            markedAsPendingCount++;
+            return { ...localItem, syncStatus: 'pending' } as ScanResult;
+          }
+          
+          // 兩邊都有：以雲端最新內容為準
+          const cloudVersion = cloudItems.find(c => c.id === localItem.id);
+          if (cloudVersion) {
+            updatedFromCloud++;
+            return cloudVersion;
+          }
 
-            return localItem;
-          });
-
-          // 找出完全不存在於本地的雲端項目
-          const localIds = new Set(newScans.map(s => s.id));
-          const toAdd = cloudItems.filter(c => !localIds.has(c.id));
-          addedFromCloud = toAdd.length;
-
-          return [...toAdd, ...newScans].sort((a, b) => b.timestamp - a.timestamp);
+          return localItem;
         });
-        
+
+        // 找出完全不存在於本地的雲端項目 (真正的新下載)
+        const localIds = new Set(newScans.map(s => s.id));
+        const toAddFromCloud = cloudItems.filter(c => !localIds.has(c.id));
+        addedFromCloud = toAddFromCloud.length;
+
+        // 一次性更新狀態
+        setScans([...toAddFromCloud, ...newScans].sort((a, b) => b.timestamp - a.timestamp));
         setCloudScans([]);
 
         const summary = [
@@ -196,9 +195,9 @@ const App: React.FC = () => {
           `📤 本次成功上傳：${pushCount} 筆`,
           `📥 從雲端新增：${addedFromCloud} 筆`,
           `🔄 雲端覆蓋更新：${updatedFromCloud} 筆`,
-          `🛠️ 修正雲端缺失：${markedAsPending} 筆 (已轉回待同步)`,
+          `🛠️ 修正雲端缺失：${markedAsPendingCount} 筆 (已轉回待同步)`,
           `--------------------`,
-          `同步完成。缺失項目將在下次操作或點擊「Push Only」時重新補齊。`
+          `同步完成。缺失項目將在下一次同步或點擊「Push Only」時重新上傳。`
         ].join('\n');
         
         alert(summary);
