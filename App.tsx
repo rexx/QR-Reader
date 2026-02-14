@@ -94,7 +94,7 @@ const App: React.FC = () => {
 
     const pending = scans.filter(s => s.syncStatus !== 'synced');
     if (pending.length === 0) {
-      return alert("✅ 所有本地紀錄皆已同步完成，無需操作。");
+      return alert("✅ 所有本地紀錄皆已同步至雲端。");
     }
 
     setIsSyncing(true);
@@ -104,7 +104,7 @@ const App: React.FC = () => {
       if (success) successCount++;
     }
     setIsSyncing(false);
-    alert(`同步完成！共成功同步 ${successCount} 筆資料。`);
+    alert(`📤 單向推播完成！成功上傳 ${successCount} 筆異動。`);
   };
 
   const fetchCloudData = async () => {
@@ -131,10 +131,26 @@ const App: React.FC = () => {
 
   const restoreFromCloud = async () => {
     if (!syncUrl) return alert("Please set a Webhook URL first.");
-    if (!window.confirm("是否與雲端資料同步並合併？（本地獨有的紀錄將會保留）")) return;
-    
+    if (!window.confirm("是否執行雙向同步？\n1. 上傳本地新異動\n2. 下載雲端新紀錄\n3. 本地獨有項目將保留")) return;
+    performFullSync();
+  };
+
+  const performFullSync = async () => {
+    if (!syncUrl) return alert("請先設定 Webhook URL。");
     setIsSyncing(true);
+    
+    let pushCount = 0;
+    let addedFromCloud = 0;
+    let updatedInLocal = 0;
+    let localPreserved = 0;
+
     try {
+      const pending = scans.filter(s => s.syncStatus !== 'synced');
+      for (const item of pending) {
+        const success = await syncItem(item);
+        if (success) pushCount++;
+      }
+
       const urlWithToken = `${syncUrl}${syncUrl.includes('?') ? '&' : '?'}token=${encodeURIComponent(syncToken)}`;
       const response = await fetch(urlWithToken);
       if (response.status === 401) throw new Error("Unauthorized");
@@ -144,12 +160,7 @@ const App: React.FC = () => {
         const cloudItems = data.map((item: any) => ({ ...item, syncStatus: 'synced' }));
         const localIds = new Set(scans.map(s => s.id));
         const cloudIds = new Set(cloudItems.map(item => item.id));
-        
-        let addedFromCloud = 0;   // 雲端有，本地沒有 (新增)
-        let updatedInLocal = 0;   // 雲端有，本地也有 (更新)
-        let localPreserved = 0;   // 雲端沒有，本地有 (保留)
 
-        // 統計雲端帶來的影響
         cloudItems.forEach((item: ScanResult) => {
           if (localIds.has(item.id)) {
             updatedInLocal++;
@@ -158,7 +169,6 @@ const App: React.FC = () => {
           }
         });
 
-        // 統計本地被保留的項目
         scans.forEach((item: ScanResult) => {
           if (!cloudIds.has(item.id)) {
             localPreserved++;
@@ -167,29 +177,28 @@ const App: React.FC = () => {
 
         setScans(prev => {
           const mergedMap = new Map<string, ScanResult>();
-          // 先放入本地
           prev.forEach(item => mergedMap.set(item.id, item));
-          // 再放入雲端 (重複的 ID 會被雲端內容覆蓋)
           cloudItems.forEach((item: ScanResult) => mergedMap.set(item.id, item));
           return Array.from(mergedMap.values()).sort((a, b) => b.timestamp - a.timestamp);
         });
         
         setCloudScans([]);
-        
+
         const summary = [
-          "🎉 同步與合併完成！",
+          "🔄 雙向同步結果報告",
           `--------------------`,
+          `📤 上傳本地異動：${pushCount} 筆`,
           `📥 從雲端新增：${addedFromCloud} 筆`,
-          `🔄 更新本地現有：${updatedInLocal} 筆`,
-          `🛡️ 本地獨有已保留：${localPreserved} 筆`,
+          `🔄 更新現有內容：${updatedInLocal} 筆`,
+          `🛡️ 本地獨有保留：${localPreserved} 筆`,
           `--------------------`,
-          `目前本地共有 ${localIds.size + addedFromCloud} 筆紀錄。`
+          `目前本地庫共有 ${scans.length + addedFromCloud} 筆資料。`
         ].join('\n');
         
         alert(summary);
       }
     } catch (error: any) {
-      alert(error.message === "Unauthorized" ? "無效的 Sync Token！" : "同步合併失敗。");
+      alert(error.message === "Unauthorized" ? "無效的 Sync Token！" : "同步失敗，請檢查 Webhook 設定。");
     } finally {
       setIsSyncing(false);
     }
@@ -326,8 +335,8 @@ const App: React.FC = () => {
                 <input type="password" value={syncToken} onChange={(e) => setSyncToken(e.target.value)} placeholder="Enter your secret key" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs font-mono text-emerald-400" />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <button onClick={restoreFromCloud} disabled={isSyncing || !syncUrl} className="p-4 rounded-3xl bg-slate-900 border border-slate-800 disabled:opacity-50 flex flex-col items-center"><i className="fas fa-download text-sky-400 mb-2"></i><p className="text-[10px] font-bold uppercase">Merge Cloud</p></button>
-                <button onClick={syncAllPending} disabled={isSyncing || !syncUrl} className="p-4 rounded-3xl bg-slate-900 border border-slate-800 disabled:opacity-50 flex flex-col items-center"><i className="fas fa-upload text-emerald-400 mb-2"></i><p className="text-[10px] font-bold uppercase">Sync All</p></button>
+                <button onClick={restoreFromCloud} disabled={isSyncing || !syncUrl} className="p-4 rounded-3xl bg-slate-900 border border-slate-800 disabled:opacity-50 flex flex-col items-center"><i className="fas fa-sync text-sky-400 mb-2"></i><p className="text-[10px] font-bold uppercase">Full Sync</p></button>
+                <button onClick={syncAllPending} disabled={isSyncing || !syncUrl} className="p-4 rounded-3xl bg-slate-900 border border-slate-800 disabled:opacity-50 flex flex-col items-center"><i className="fas fa-arrow-up text-emerald-400 mb-2"></i><p className="text-[10px] font-bold uppercase">Push Only</p></button>
               </div>
 
               {/* Data Management Section */}
@@ -424,7 +433,6 @@ const App: React.FC = () => {
                     <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 pl-9 pr-4 text-sm outline-none focus:border-sky-500/50" />
                   </div>
                   <button onClick={() => setIsStatsExpanded(!isStatsExpanded)} className={`w-10 h-10 rounded-xl border transition-all ${isStatsExpanded ? 'bg-sky-500 border-sky-400 text-white' : 'bg-slate-900 border-slate-800 text-slate-500'}`}><i className="fas fa-chart-bar text-xs"></i></button>
-                  <button onClick={syncAllPending} disabled={isSyncing} className="w-10 h-10 bg-slate-900 rounded-xl border border-slate-800 text-slate-500 disabled:opacity-30"><i className={`fas ${isSyncing ? 'fa-circle-notch animate-spin' : 'fa-sync'} text-xs`}></i></button>
                 </div>
                 {isStatsExpanded && (
                   <div className="px-4 mb-4 grid grid-cols-4 gap-2 bg-slate-900/50 p-3 rounded-2xl border border-slate-800 mx-4">
