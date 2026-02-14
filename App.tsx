@@ -89,7 +89,7 @@ const App: React.FC = () => {
     }
   };
 
-  const syncAllPending = async () => {
+  const performPushSync = async () => {
     if (!syncUrl) return alert("Please set a Webhook URL first.");
     if (isSyncing) return;
 
@@ -115,6 +115,73 @@ const App: React.FC = () => {
     alert(`📤 Push complete! Successfully uploaded ${successCount} changes.`);
   };
 
+  const performPullSync = async () => {
+    if (!syncUrl) return alert("Please set a Webhook URL first.");
+    if (isSyncing) return;
+
+    if (!window.confirm("Perform Pull Sync (Audit & Merge)?\nThis will fetch cloud data to update your local history.")) return;
+
+    setIsSyncing(true);
+    setSyncProgress({ current: 0, total: 1, label: 'Connecting to cloud...' });
+
+    let addedCount = 0;
+    let updatedCount = 0;
+    let resetCount = 0;
+
+    try {
+      const urlWithToken = `${syncUrl}${syncUrl.includes('?') ? '&' : '?'}token=${encodeURIComponent(syncToken)}`;
+      const response = await fetch(urlWithToken);
+      if (response.status === 401) throw new Error("Unauthorized");
+      
+      const cloudData = await response.json();
+      if (Array.isArray(cloudData)) {
+        setSyncProgress({ current: 0, total: 1, label: 'Merging records...' });
+        
+        const cloudItems: ScanResult[] = cloudData.slice(0, 250).map((item: any) => ({ ...item, syncStatus: 'synced' }));
+        const cloudIds = new Set(cloudItems.map(item => item.id));
+
+        const auditedLocalScans = scans.map(localItem => {
+          if (localItem.syncStatus === 'synced' && !cloudIds.has(localItem.id)) {
+            resetCount++;
+            return { ...localItem, syncStatus: 'pending' } as ScanResult;
+          }
+          const cloudVersion = cloudItems.find(c => c.id === localItem.id);
+          if (cloudVersion) {
+            updatedCount++;
+            return cloudVersion;
+          }
+          return localItem;
+        });
+
+        const localIds = new Set(auditedLocalScans.map(s => s.id));
+        const toRestoreFromCloud = cloudItems.filter(c => !localIds.has(c.id));
+        addedCount = toRestoreFromCloud.length;
+
+        const merged = [...toRestoreFromCloud, ...auditedLocalScans].sort((a, b) => b.timestamp - a.timestamp);
+        setScans(merged);
+        setCloudScans([]);
+
+        const summary = [
+          "📥 Pull Sync Report",
+          `--------------------`,
+          `🆕 Added (Restore): ${addedCount}`,
+          `🔄 Updated (Conflict): ${updatedCount}`,
+          `🛠️ Reset to Pending: ${resetCount}`,
+          `--------------------`,
+          `Pull complete.`
+        ].join('\n');
+        
+        setIsSyncing(false);
+        setSyncProgress(null);
+        alert(summary);
+      }
+    } catch (error: any) {
+      setIsSyncing(false);
+      setSyncProgress(null);
+      alert(error.message === "Unauthorized" ? "Invalid Sync Token!" : "Pull failed.");
+    }
+  };
+
   const fetchCloudData = async () => {
     if (!syncUrl) return alert("Please set a Webhook URL first.");
     setIsSyncing(true);
@@ -134,95 +201,6 @@ const App: React.FC = () => {
       alert(error.message === "Unauthorized" ? "Invalid Sync Token!" : "Failed to fetch cloud data.");
     } finally {
       setIsSyncing(false);
-    }
-  };
-
-  const restoreFromCloud = async () => {
-    if (!syncUrl) return alert("Please set a Webhook URL first.");
-    if (!window.confirm("Perform Full Sync?\n1. Push local changes\n2. Detect and fix missing cloud items\n3. Pull new cloud records")) return;
-    performFullSync();
-  };
-
-  const performFullSync = async () => {
-    if (!syncUrl) return alert("Please set a Webhook URL first.");
-    setIsSyncing(true);
-    
-    let pushCount = 0;
-    let addedFromCloud = 0;
-    let updatedFromCloud = 0;
-    let markedAsPendingCount = 0;
-
-    try {
-      // 1. Push current pending items
-      const initialPending = scans.filter(s => s.syncStatus !== 'synced');
-      if (initialPending.length > 0) {
-        setSyncProgress({ current: 0, total: initialPending.length, label: 'Pushing local changes...' });
-        for (let i = 0; i < initialPending.length; i++) {
-          const success = await syncItem(initialPending[i]);
-          if (success) pushCount++;
-          setSyncProgress(prev => prev ? { ...prev, current: i + 1 } : null);
-        }
-      }
-
-      setSyncProgress({ current: 0, total: 1, label: 'Fetching cloud database...' });
-
-      // 2. Fetch all from cloud
-      const urlWithToken = `${syncUrl}${syncUrl.includes('?') ? '&' : '?'}token=${encodeURIComponent(syncToken)}`;
-      const response = await fetch(urlWithToken);
-      if (response.status === 401) throw new Error("Unauthorized");
-      
-      const cloudData = await response.json();
-      if (Array.isArray(cloudData)) {
-        setSyncProgress({ current: 0, total: 1, label: 'Merging records...' });
-        const cloudItems: ScanResult[] = cloudData.map((item: any) => ({ ...item, syncStatus: 'synced' }));
-        const cloudIds = new Set(cloudItems.map(item => item.id));
-
-        // 3. Calculate merge results
-        const newScans = scans.map(localItem => {
-          // Detect cloud deletion
-          if (localItem.syncStatus === 'synced' && !cloudIds.has(localItem.id)) {
-            markedAsPendingCount++;
-            return { ...localItem, syncStatus: 'pending' } as ScanResult;
-          }
-          
-          // Exists in both: update from cloud
-          const cloudVersion = cloudItems.find(c => c.id === localItem.id);
-          if (cloudVersion) {
-            updatedFromCloud++;
-            return cloudVersion;
-          }
-
-          return localItem;
-        });
-
-        // Items existing only on cloud
-        const localIds = new Set(newScans.map(s => s.id));
-        const toAddFromCloud = cloudItems.filter(c => !localIds.has(c.id));
-        addedFromCloud = toAddFromCloud.length;
-
-        // Bulk update state
-        setScans([...toAddFromCloud, ...newScans].sort((a, b) => b.timestamp - a.timestamp));
-        setCloudScans([]);
-
-        const summary = [
-          "🔄 Full Sync Report",
-          `--------------------`,
-          `📤 Successfully Pushed: ${pushCount}`,
-          `📥 Added from Cloud: ${addedFromCloud}`,
-          `🔄 Updated from Cloud: ${updatedFromCloud}`,
-          `🛠️ Fixed Cloud Missing: ${markedAsPendingCount} (reset to pending)`,
-          `--------------------`,
-          `Sync complete. Missing items will be re-pushed in the next sync or by clicking 'Push Only'.`
-        ].join('\n');
-        
-        setIsSyncing(false);
-        setSyncProgress(null);
-        alert(summary);
-      }
-    } catch (error: any) {
-      setIsSyncing(false);
-      setSyncProgress(null);
-      alert(error.message === "Unauthorized" ? "Invalid Sync Token!" : "Sync failed. Please check your Webhook settings.");
     }
   };
 
@@ -265,7 +243,7 @@ const App: React.FC = () => {
           alert("No new unique records found in this file.");
         }
       } catch (err) {
-        alert("Failed to parse JSON file. Please ensure it's a valid Smart Lens backup.");
+        alert("Failed to parse JSON file.");
       }
       e.target.value = '';
     };
@@ -330,7 +308,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="h-screen w-screen max-w-md mx-auto flex flex-col bg-slate-950 text-slate-100 shadow-2xl relative border-x border-slate-800 overflow-hidden">
+    <div className="h-screen w-screen max-w-md mx-auto flex flex-col bg-slate-950 text-slate-100 shadow-2xl relative border-x border-slate-800 overflow-hidden font-sans">
       {/* Progress Overlay */}
       {isSyncing && syncProgress && (
         <div className="absolute inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
@@ -367,49 +345,56 @@ const App: React.FC = () => {
               <div className="flex items-center gap-1.5"><p className="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em]">QR Reader</p>{isCameraActive && <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>}</div>
             </div>
           </div>
-          <button onClick={() => handleTabChange('settings')} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${activeTab === 'settings' ? 'bg-sky-500 text-white' : 'bg-slate-900 text-slate-500 hover:text-white'}`}><i className="fas fa-cog"></i></button>
+          <button onClick={() => handleTabChange('settings')} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-95 ${activeTab === 'settings' ? 'bg-sky-500 text-white' : 'bg-slate-900 text-slate-500 hover:text-white'}`}><i className="fas fa-cog"></i></button>
         </div>
       </header>
 
       <main className="flex-1 overflow-hidden relative flex flex-col">
         {activeTab === 'settings' ? (
           <div className="flex-1 p-6 scrollable-y">
-            <h2 className="text-lg font-bold mb-6 flex items-center gap-2"><i className="fas fa-cloud-arrow-up text-sky-400"></i> Cloud Sync Settings</h2>
+            <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-sky-400"><i className="fas fa-cloud"></i> Cloud Sync</h2>
             <div className="space-y-6">
-              <div className="p-5 rounded-3xl bg-slate-900 border border-slate-800">
+              <div className="p-5 rounded-3xl bg-slate-900 border border-slate-800 shadow-inner">
                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-3">Webhook URL</label>
-                <input type="text" value={syncUrl} onChange={(e) => setSyncUrl(e.target.value)} placeholder="https://script.google.com/macros/s/.../exec" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs font-mono text-sky-300 mb-4" />
+                <input type="text" value={syncUrl} onChange={(e) => setSyncUrl(e.target.value)} placeholder="https://script.google.com/macros/s/.../exec" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs font-mono text-sky-300 mb-4 focus:border-sky-500/50 outline-none transition-all" />
                 
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-3">Sync Token (Secret)</label>
-                <input type="password" value={syncToken} onChange={(e) => setSyncToken(e.target.value)} placeholder="Enter your secret key" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs font-mono text-emerald-400" />
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-3">Sync Token</label>
+                <input type="password" value={syncToken} onChange={(e) => setSyncToken(e.target.value)} placeholder="Enter secret key" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs font-mono text-emerald-400 focus:border-emerald-500/50 outline-none transition-all" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <button onClick={restoreFromCloud} disabled={isSyncing || !syncUrl} className="p-4 rounded-3xl bg-slate-900 border border-slate-800 disabled:opacity-50 flex flex-col items-center transition-all active:scale-95"><i className="fas fa-sync text-sky-400 mb-2"></i><p className="text-[10px] font-bold uppercase">Full Sync</p></button>
-                <button onClick={syncAllPending} disabled={isSyncing || !syncUrl} className="p-4 rounded-3xl bg-slate-900 border border-slate-800 disabled:opacity-50 flex flex-col items-center transition-all active:scale-95"><i className="fas fa-arrow-up text-emerald-400 mb-2"></i><p className="text-[10px] font-bold uppercase">Push Only</p></button>
+
+              <div className="grid grid-cols-2 gap-4 pt-2">
+                <button onClick={performPullSync} disabled={isSyncing || !syncUrl} className="w-full p-5 rounded-3xl bg-sky-500/10 border border-sky-500/20 disabled:opacity-30 flex flex-col items-center transition-all active:scale-95 hover:bg-sky-500/20 group">
+                  <i className="fas fa-cloud-download-alt text-sky-400 text-xl mb-2 group-hover:scale-110 transition-transform"></i>
+                  <p className="text-[11px] font-black uppercase tracking-wider text-sky-400">PULL</p>
+                </button>
+                <button onClick={performPushSync} disabled={isSyncing || !syncUrl} className="w-full p-5 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 disabled:opacity-30 flex flex-col items-center transition-all active:scale-95 hover:bg-emerald-500/20 group">
+                  <i className="fas fa-cloud-upload-alt text-emerald-400 text-xl mb-2 group-hover:scale-110 transition-transform"></i>
+                  <p className="text-[11px] font-black uppercase tracking-wider text-emerald-400">PUSH</p>
+                </button>
               </div>
 
               <div className="pt-4">
-                <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><i className="fas fa-database text-amber-400"></i> Data Management</h2>
-                <div className="grid grid-cols-2 gap-3">
-                  <button onClick={exportToJSON} className="p-4 rounded-3xl bg-slate-900 border border-slate-800 flex flex-col items-center active:scale-95 transition-all">
-                    <i className="fas fa-file-export text-sky-400 mb-2"></i>
-                    <p className="text-[10px] font-bold uppercase">Export JSON</p>
+                <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-amber-400"><i className="fas fa-database"></i> Data Management</h2>
+                <div className="grid grid-cols-2 gap-4">
+                  <button onClick={() => jsonImportRef.current?.click()} className="w-full p-5 rounded-3xl bg-sky-500/10 border border-sky-500/20 flex flex-col items-center active:scale-95 transition-all hover:bg-sky-500/20 group">
+                    <i className="fas fa-file-import text-sky-400 text-xl mb-2 group-hover:scale-110 transition-transform"></i>
+                    <p className="text-[11px] font-black uppercase tracking-wider text-sky-400">IMPORT</p>
                   </button>
-                  <button onClick={() => jsonImportRef.current?.click()} className="p-4 rounded-3xl bg-slate-900 border border-slate-800 flex flex-col items-center active:scale-95 transition-all">
-                    <i className="fas fa-file-import text-amber-400 mb-2"></i>
-                    <p className="text-[10px] font-bold uppercase">Import JSON</p>
+                  <button onClick={exportToJSON} className="w-full p-5 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 flex flex-col items-center active:scale-95 transition-all hover:bg-emerald-500/20 group">
+                    <i className="fas fa-file-export text-emerald-400 text-xl mb-2 group-hover:scale-110 transition-transform"></i>
+                    <p className="text-[11px] font-black uppercase tracking-wider text-emerald-400">EXPORT</p>
                   </button>
-                  <input type="file" ref={jsonImportRef} onChange={handleJSONImport} accept=".json" className="hidden" />
                 </div>
+                <input type="file" ref={jsonImportRef} onChange={handleJSONImport} accept=".json" className="hidden" />
               </div>
             </div>
           </div>
         ) : activeTab === 'upload' ? (
           <div className="flex-1 flex flex-col justify-center px-6">
             <div onClick={() => fileInputRef.current?.click()} className="group relative cursor-pointer aspect-square rounded-[3rem] bg-slate-900 border-4 border-slate-800 hover:border-sky-500/50 shadow-2xl overflow-hidden flex flex-col items-center justify-center transition-all active:scale-95">
-              <div className="w-20 h-20 rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center mb-6 shadow-xl"><i className="fas fa-file-arrow-up text-3xl text-sky-400"></i></div>
+              <div className="w-20 h-20 rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center mb-6 shadow-xl transition-transform group-hover:scale-110"><i className="fas fa-file-arrow-up text-3xl text-sky-400"></i></div>
               <h3 className="text-lg font-bold text-slate-100 mb-2">Upload Image</h3>
-              <div className="mt-8 px-6 py-2.5 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 text-[10px] font-black uppercase tracking-[0.2em]">Select File</div>
+              <div className="mt-8 px-6 py-2.5 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 text-[10px] font-black uppercase tracking-[0.2em] group-hover:bg-sky-500/20 transition-all">Select File</div>
             </div>
             <input type="file" ref={fileInputRef} onChange={(e) => {
               const file = e.target.files?.[0]; if (!file) return;
@@ -437,7 +422,7 @@ const App: React.FC = () => {
               <div className="flex-1 flex flex-col overflow-hidden px-6 pt-6">
                 <button onClick={() => setSelectedResult(null)} className="flex items-center gap-2 text-slate-500 mb-6 text-[10px] font-bold uppercase transition-all hover:text-white"><i className="fas fa-chevron-left"></i> Back</button>
                 <div className="flex-1 scrollable-y pb-32">
-                  <div className="p-6 rounded-[2.3rem] bg-slate-900 border border-slate-800">
+                  <div className="p-6 rounded-[2.3rem] bg-slate-900 border border-slate-800 shadow-xl">
                     <div className="flex justify-between items-start mb-4">
                       <div 
                         onClick={() => !selectedResult.isCloudOnly && (setIsEditingName(true), setEditNameValue(selectedResult.name !== undefined && selectedResult.name !== null ? String(selectedResult.name) : ''))} 
@@ -450,25 +435,25 @@ const App: React.FC = () => {
                             onChange={e => setEditNameValue(e.target.value)} 
                             onBlur={() => handleUpdateName(selectedResult.id, editNameValue)} 
                             onKeyDown={e => e.key === 'Enter' && handleUpdateName(selectedResult.id, editNameValue)}
-                            className="bg-slate-950 border border-sky-500 rounded px-2 py-1 text-sm w-full outline-none" 
+                            className="bg-slate-950 border border-sky-500 rounded px-2 py-1 text-sm w-full outline-none text-white" 
                           />
                         ) : (
-                          <div className="flex items-center gap-2">
-                            <h2 className="text-base font-bold text-slate-100">
+                          <div className="flex items-center gap-2 group">
+                            <h2 className="text-base font-bold text-slate-100 group-hover:text-sky-400 transition-colors">
                               {(selectedResult.name !== undefined && selectedResult.name !== null && selectedResult.name !== "") ? String(selectedResult.name) : 'Untitled Scan'}
                             </h2>
-                            {!selectedResult.isCloudOnly && <i className="fas fa-pencil-alt text-[10px] text-slate-600"></i>}
+                            {!selectedResult.isCloudOnly && <i className="fas fa-pencil-alt text-[10px] text-slate-600 group-hover:text-sky-400"></i>}
                           </div>
                         )}
                       </div>
                       <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">{formatTimestamp(selectedResult.timestamp)}</span>
                     </div>
-                    <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 break-all text-xs font-mono mb-6 text-sky-200 leading-relaxed">
+                    <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 break-all text-xs font-mono mb-6 text-sky-200 leading-relaxed select-all">
                       {selectedResult.data}
                     </div>
                     <div className="flex gap-3">
-                      <button onClick={() => { navigator.clipboard.writeText(selectedResult.data); alert("Copied!"); }} className="flex-1 py-3 rounded-xl bg-slate-800 text-xs font-bold active:scale-95 transition-all">Copy</button>
-                      {selectedResult.type === 'url' && <button onClick={() => window.open(selectedResult.data, '_blank')} className="flex-1 py-3 rounded-xl bg-sky-600 text-xs font-bold active:scale-95 transition-all">Open</button>}
+                      <button onClick={() => { navigator.clipboard.writeText(selectedResult.data); alert("Copied!"); }} className="flex-1 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold active:scale-95 transition-all">Copy</button>
+                      {selectedResult.type === 'url' && <button onClick={() => window.open(selectedResult.data, '_blank')} className="flex-1 py-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-xs font-bold active:scale-95 transition-all">Open</button>}
                     </div>
                   </div>
                 </div>
@@ -478,12 +463,12 @@ const App: React.FC = () => {
                 <div className="px-4 mb-4 flex gap-2">
                   <div className="relative flex-1">
                     <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 text-xs"></i>
-                    <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 pl-9 pr-4 text-sm outline-none focus:border-sky-500/50" />
+                    <input type="text" placeholder="Search history..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 pl-9 pr-4 text-sm outline-none focus:border-sky-500/50 transition-all text-white" />
                   </div>
-                  <button onClick={() => setIsStatsExpanded(!isStatsExpanded)} className={`w-10 h-10 rounded-xl border transition-all ${isStatsExpanded ? 'bg-sky-500 border-sky-400 text-white' : 'bg-slate-900 border-slate-800 text-slate-500'}`}><i className="fas fa-chart-bar text-xs"></i></button>
+                  <button onClick={() => setIsStatsExpanded(!isStatsExpanded)} className={`w-10 h-10 rounded-xl border transition-all active:scale-95 ${isStatsExpanded ? 'bg-sky-500 border-sky-400 text-white' : 'bg-slate-900 border-slate-800 text-slate-500'}`}><i className="fas fa-chart-bar text-xs"></i></button>
                 </div>
                 {isStatsExpanded && (
-                  <div className="px-4 mb-4 grid grid-cols-4 gap-2 bg-slate-900/50 p-3 rounded-2xl border border-slate-800 mx-4">
+                  <div className="px-4 mb-4 grid grid-cols-4 gap-2 bg-slate-900/50 p-3 rounded-2xl border border-slate-800 mx-4 animate-in slide-in-from-top-2">
                     <div className="text-center"><p className="text-lg font-black text-white">{stats.total}</p><p className="text-[7px] uppercase font-bold text-slate-500">Local</p></div>
                     <div className="text-center border-l border-slate-800"><p className="text-lg font-black text-emerald-400">{stats.synced}</p><p className="text-[7px] uppercase font-bold text-slate-500">Sync</p></div>
                     <div className="text-center border-l border-slate-800"><p className="text-lg font-black text-amber-400">{stats.today}</p><p className="text-[7px] uppercase font-bold text-slate-500">Today</p></div>
@@ -498,13 +483,13 @@ const App: React.FC = () => {
                     </div>
                   ) : (
                     allVisibleScans.map(scan => (
-                      <div key={scan.id} onClick={() => setSelectedResult(scan)} className={`p-4 rounded-2xl border transition-all active:scale-[0.98] cursor-pointer ${scan.isCloudOnly ? 'bg-slate-950 border-dashed border-slate-800 opacity-70' : 'bg-slate-900 border-slate-800 hover:border-slate-700'}`}>
+                      <div key={scan.id} onClick={() => setSelectedResult(scan)} className={`p-4 rounded-2xl border transition-all active:scale-[0.98] cursor-pointer ${scan.isCloudOnly ? 'bg-slate-950 border-dashed border-slate-800 opacity-70' : 'bg-slate-900 border-slate-800 hover:border-slate-700 hover:shadow-lg'}`}>
                         <div className="flex items-center gap-3">
                           <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${scan.type === 'url' ? 'bg-indigo-500/10 text-indigo-400' : 'bg-amber-500/10 text-amber-400'}`}>
                             <i className={scan.isCloudOnly ? 'fas fa-cloud' : (scan.type === 'url' ? 'fas fa-link' : 'fas fa-font')}></i>
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold truncate pr-2">
+                            <p className="text-xs font-bold truncate pr-2 text-slate-100">
                               {(scan.name !== undefined && scan.name !== null && scan.name !== "") ? String(scan.name) : scan.data}
                             </p>
                             <p className="text-[10px] text-slate-500 mt-0.5">{formatTimestamp(scan.timestamp)}</p>
@@ -519,7 +504,7 @@ const App: React.FC = () => {
                     ))
                   )}
                   {syncUrl && (
-                    <button onClick={fetchCloudData} disabled={isSyncing} className="w-full p-4 border border-dashed border-slate-800 rounded-2xl text-[10px] font-bold uppercase text-slate-500 hover:text-sky-400 hover:border-sky-500/50 transition-all flex items-center justify-center gap-2 active:scale-95">
+                    <button onClick={fetchCloudData} disabled={isSyncing} className="w-full p-4 border border-dashed border-slate-800 rounded-2xl text-[10px] font-bold uppercase text-slate-500 hover:text-sky-400 hover:border-sky-500/50 transition-all flex items-center justify-center gap-2 active:scale-95 bg-slate-900/20">
                       <i className={`fas ${isSyncing ? 'fa-circle-notch animate-spin' : 'fa-search'}`}></i>
                       {isSyncing ? 'Fetching...' : 'Load More from Cloud'}
                     </button>
@@ -531,10 +516,10 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <nav className="shrink-0 bg-slate-950/90 border-t border-slate-800/50 px-4 pt-4 pb-10 flex justify-around">
-        <button onClick={() => handleTabChange('upload')} className={`flex flex-col items-center gap-1 flex-1 transition-all ${activeTab === 'upload' ? 'text-sky-400' : 'text-slate-600'}`}><i className="fas fa-file-upload text-lg"></i><span className="text-[8px] font-bold uppercase">Upload</span></button>
-        <button onClick={() => handleTabChange('scanner')} className={`flex flex-col items-center gap-1 flex-1 transition-all ${activeTab === 'scanner' ? 'text-sky-400' : 'text-slate-600'}`}><i className="fas fa-camera text-lg"></i><span className="text-[8px] font-bold uppercase">Camera</span></button>
-        <button onClick={() => handleTabChange('history')} className={`flex flex-col items-center gap-1 flex-1 transition-all ${activeTab === 'history' ? 'text-sky-400' : 'text-slate-600'}`}><i className="fas fa-history text-lg"></i><span className="text-[8px] font-bold uppercase">History</span></button>
+      <nav className="shrink-0 bg-slate-950/90 border-t border-slate-800/50 px-4 pt-4 pb-10 flex justify-around backdrop-blur-md">
+        <button onClick={() => handleTabChange('upload')} className={`flex flex-col items-center gap-1 flex-1 transition-all active:scale-95 ${activeTab === 'upload' ? 'text-sky-400' : 'text-slate-600 hover:text-slate-400'}`}><i className="fas fa-file-upload text-lg"></i><span className="text-[8px] font-bold uppercase">Upload</span></button>
+        <button onClick={() => handleTabChange('scanner')} className={`flex flex-col items-center gap-1 flex-1 transition-all active:scale-95 ${activeTab === 'scanner' ? 'text-sky-400' : 'text-slate-600 hover:text-slate-400'}`}><i className="fas fa-camera text-lg"></i><span className="text-[8px] font-bold uppercase">Camera</span></button>
+        <button onClick={() => handleTabChange('history')} className={`flex flex-col items-center gap-1 flex-1 transition-all active:scale-95 ${activeTab === 'history' ? 'text-sky-400' : 'text-slate-600'}`}><i className="fas fa-history text-lg"></i><span className="text-[8px] font-bold uppercase">History</span></button>
       </nav>
     </div>
   );
