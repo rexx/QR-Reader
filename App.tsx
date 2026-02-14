@@ -118,21 +118,65 @@ const App: React.FC = () => {
 
   const restoreFromCloud = async () => {
     if (!syncUrl) return alert("Please set a Webhook URL first.");
-    if (!window.confirm("Restore latest 256 items from cloud?")) return;
+    if (!window.confirm("是否與雲端資料同步並合併？（本地獨有的紀錄將會保留）")) return;
+    
     setIsSyncing(true);
     try {
       const urlWithToken = `${syncUrl}${syncUrl.includes('?') ? '&' : '?'}token=${encodeURIComponent(syncToken)}`;
       const response = await fetch(urlWithToken);
       if (response.status === 401) throw new Error("Unauthorized");
+      
       const data = await response.json();
       if (Array.isArray(data)) {
-        const latestCloud = data.slice(0, LOCAL_LIMIT).map((item: any) => ({ ...item, syncStatus: 'synced' }));
-        setScans(latestCloud);
+        const cloudItems = data.map((item: any) => ({ ...item, syncStatus: 'synced' }));
+        const localIds = new Set(scans.map(s => s.id));
+        const cloudIds = new Set(cloudItems.map(item => item.id));
+        
+        let addedFromCloud = 0;   // 雲端有，本地沒有 (新增)
+        let updatedInLocal = 0;   // 雲端有，本地也有 (更新)
+        let localPreserved = 0;   // 雲端沒有，本地有 (保留)
+
+        // 統計雲端帶來的影響
+        cloudItems.forEach((item: ScanResult) => {
+          if (localIds.has(item.id)) {
+            updatedInLocal++;
+          } else {
+            addedFromCloud++;
+          }
+        });
+
+        // 統計本地被保留的項目
+        scans.forEach((item: ScanResult) => {
+          if (!cloudIds.has(item.id)) {
+            localPreserved++;
+          }
+        });
+
+        setScans(prev => {
+          const mergedMap = new Map<string, ScanResult>();
+          // 先放入本地
+          prev.forEach(item => mergedMap.set(item.id, item));
+          // 再放入雲端 (重複的 ID 會被雲端內容覆蓋)
+          cloudItems.forEach((item: ScanResult) => mergedMap.set(item.id, item));
+          return Array.from(mergedMap.values()).sort((a, b) => b.timestamp - a.timestamp);
+        });
+        
         setCloudScans([]);
-        alert("Restore success.");
+        
+        const summary = [
+          "🎉 同步與合併完成！",
+          `--------------------`,
+          `📥 從雲端新增：${addedFromCloud} 筆`,
+          `🔄 更新本地現有：${updatedInLocal} 筆`,
+          `🛡️ 本地獨有已保留：${localPreserved} 筆`,
+          `--------------------`,
+          `目前本地共有 ${localIds.size + addedFromCloud} 筆紀錄。`
+        ].join('\n');
+        
+        alert(summary);
       }
     } catch (error: any) {
-      alert(error.message === "Unauthorized" ? "Invalid Sync Token!" : "Restore failed.");
+      alert(error.message === "Unauthorized" ? "無效的 Sync Token！" : "同步合併失敗。");
     } finally {
       setIsSyncing(false);
     }
@@ -269,7 +313,7 @@ const App: React.FC = () => {
                 <input type="password" value={syncToken} onChange={(e) => setSyncToken(e.target.value)} placeholder="Enter your secret key" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs font-mono text-emerald-400" />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <button onClick={restoreFromCloud} disabled={isSyncing || !syncUrl} className="p-4 rounded-3xl bg-slate-900 border border-slate-800 disabled:opacity-50 flex flex-col items-center"><i className="fas fa-download text-sky-400 mb-2"></i><p className="text-[10px] font-bold uppercase">Restore</p></button>
+                <button onClick={restoreFromCloud} disabled={isSyncing || !syncUrl} className="p-4 rounded-3xl bg-slate-900 border border-slate-800 disabled:opacity-50 flex flex-col items-center"><i className="fas fa-download text-sky-400 mb-2"></i><p className="text-[10px] font-bold uppercase">Merge Cloud</p></button>
                 <button onClick={syncAllPending} disabled={isSyncing || !syncUrl} className="p-4 rounded-3xl bg-slate-900 border border-slate-800 disabled:opacity-50 flex flex-col items-center"><i className="fas fa-upload text-emerald-400 mb-2"></i><p className="text-[10px] font-bold uppercase">Sync All</p></button>
               </div>
 
