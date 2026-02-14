@@ -32,6 +32,7 @@ const App: React.FC = () => {
   const [cloudScans, setCloudScans] = useState<ScanResult[]>([]);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const jsonImportRef = useRef<HTMLInputElement>(null);
 
   const isCameraActive = activeTab === 'scanner' && !selectedResult;
 
@@ -137,6 +138,52 @@ const App: React.FC = () => {
     }
   };
 
+  const exportToJSON = () => {
+    if (scans.length === 0) return alert("No history to export.");
+    const dataStr = JSON.stringify(scans, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `smart_lens_backup_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleJSONImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const importedData = JSON.parse(event.target?.result as string);
+        if (!Array.isArray(importedData)) throw new Error("Invalid format");
+        
+        const localIds = new Set(scans.map(s => s.id));
+        const newItems = importedData.filter((item: ScanResult) => {
+          return item.id && item.data && !localIds.has(item.id);
+        }).map(item => ({
+          ...item,
+          syncStatus: item.syncStatus === 'synced' ? 'synced' : 'pending'
+        }));
+
+        if (newItems.length > 0) {
+          setScans(prev => [...newItems, ...prev]);
+          alert(`Successfully imported ${newItems.length} new records.`);
+        } else {
+          alert("No new unique records found in this file.");
+        }
+      } catch (err) {
+        alert("Failed to parse JSON file. Please ensure it's a valid Smart Lens backup.");
+      }
+      e.target.value = '';
+    };
+    reader.readAsText(file);
+  };
+
   const handleTabChange = (tab: 'upload' | 'scanner' | 'history' | 'settings') => {
     setActiveTab(tab);
     setSelectedResult(null);
@@ -201,7 +248,7 @@ const App: React.FC = () => {
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center shadow-lg shadow-sky-500/20"><i className="fas fa-qrcode text-xl text-white"></i></div>
             <div>
-              <h1 className="text-xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">Smart Lens</h1>
+              <h1 className="text-xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-r from-white to-slate-400">Smart Lens</h1>
               <div className="flex items-center gap-1.5"><p className="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em]">QR Reader</p>{isCameraActive && <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>}</div>
             </div>
           </div>
@@ -222,8 +269,24 @@ const App: React.FC = () => {
                 <input type="password" value={syncToken} onChange={(e) => setSyncToken(e.target.value)} placeholder="Enter your secret key" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs font-mono text-emerald-400" />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <button onClick={restoreFromCloud} disabled={isSyncing || !syncUrl} className="p-4 rounded-3xl bg-slate-900 border border-slate-800 disabled:opacity-50"><i className="fas fa-download text-sky-400 mb-2"></i><p className="text-[10px] font-bold uppercase">Restore</p></button>
-                <button onClick={syncAllPending} disabled={isSyncing || !syncUrl} className="p-4 rounded-3xl bg-slate-900 border border-slate-800 disabled:opacity-50"><i className="fas fa-upload text-emerald-400 mb-2"></i><p className="text-[10px] font-bold uppercase">Sync All</p></button>
+                <button onClick={restoreFromCloud} disabled={isSyncing || !syncUrl} className="p-4 rounded-3xl bg-slate-900 border border-slate-800 disabled:opacity-50 flex flex-col items-center"><i className="fas fa-download text-sky-400 mb-2"></i><p className="text-[10px] font-bold uppercase">Restore</p></button>
+                <button onClick={syncAllPending} disabled={isSyncing || !syncUrl} className="p-4 rounded-3xl bg-slate-900 border border-slate-800 disabled:opacity-50 flex flex-col items-center"><i className="fas fa-upload text-emerald-400 mb-2"></i><p className="text-[10px] font-bold uppercase">Sync All</p></button>
+              </div>
+
+              {/* Data Management Section */}
+              <div className="pt-4">
+                <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><i className="fas fa-database text-amber-400"></i> Data Management</h2>
+                <div className="grid grid-cols-2 gap-3">
+                  <button onClick={exportToJSON} className="p-4 rounded-3xl bg-slate-900 border border-slate-800 flex flex-col items-center">
+                    <i className="fas fa-file-export text-sky-400 mb-2"></i>
+                    <p className="text-[10px] font-bold uppercase">Export JSON</p>
+                  </button>
+                  <button onClick={() => jsonImportRef.current?.click()} className="p-4 rounded-3xl bg-slate-900 border border-slate-800 flex flex-col items-center">
+                    <i className="fas fa-file-import text-amber-400 mb-2"></i>
+                    <p className="text-[10px] font-bold uppercase">Import JSON</p>
+                  </button>
+                  <input type="file" ref={jsonImportRef} onChange={handleJSONImport} accept=".json" className="hidden" />
+                </div>
               </div>
             </div>
           </div>
