@@ -1,78 +1,78 @@
 
-# 功能規範書：Smart Lens 同步至 Google Sheets (GAS 深度同步版)
+# Function Specification: Smart Lens Sync to Google Sheets (GAS Deep Sync)
 
-## 1. 概述
-本規範定義了 Smart Lens 與 Google Sheets 之間的雙向同步邏輯。系統採用「本地輕量快取、雲端完整存儲」的策略，將手機本地紀錄限制在 256 筆以內，並透過 Google Sheets 作為永久資料庫。
+## 1. Overview
+This specification defines the two-way synchronization logic between Smart Lens and Google Sheets. The system adopts a "lightweight local cache, full cloud storage" strategy, limiting local mobile records to 256 entries while using Google Sheets as the permanent database.
 
-## 2. 技術架構 (增強版)
-- **通訊協議**: 
-    - `POST`: 用於新增或更新資料 (Upsert)。
-    - `GET`: 用於拉取雲端完整清單 (Pull/Restore)。
-- **辨識碼**: 每一筆掃描以 `id` (隨機字串) 作為唯一鍵值 (Primary Key)。
-- **儲存限制**: 手機端 `localStorage` 僅保留最新 256 筆紀錄。
+## 2. Technical Architecture
+- **Protocol**: 
+    - `POST`: For adding or updating data (Upsert).
+    - `GET`: For pulling the full cloud list (Restore/Pull).
+- **Identifier**: Each scan uses a unique `id` (random string) as the primary key.
+- **Storage Limit**: Local `localStorage` only retains the latest 256 records.
 
-## 3. 同步情境與處理邏輯
+## 3. Sync Scenarios and Logic
 
-| 情境 | 狀態描述 | 處理動作 |
+| Scenario | Status Description | Action |
 | :--- | :--- | :--- |
-| **A. 新增同步** | Local 有新掃描，Cloud 尚未存在。 | **Push**: 發送 POST 並標記為 `Synced`。 |
-| **B. 本地清理** | 本地紀錄超過 256 筆。 | **Prune**: 自動移除本地「已同步且最舊」的紀錄，確保本地不超標。 |
-| **C. 深度檢索** | 使用者需要查看超過 256 筆以前的資料。 | **Fetch All**: 呼叫 `GET` 獲取雲端全量資料並暫時顯示於 UI。 |
-| **D. 內容更新** | 本地修改名稱。 | **Update**: POST 時帶入相同 ID，雲端搜尋對應列並更新。 |
-| **E. 雲端缺失** | 雲端列被手動刪除。 | **Re-sync**: 同步檢查時若發現 ID 消失，自動重新上傳。 |
+| **A. New Sync** | Local has a new scan, Cloud does not have it yet. | **Push**: Send POST and mark as `Synced`. |
+| **B. Local Pruning** | Local records exceed 256. | **Prune**: Automatically remove the oldest "synced" local records. |
+| **C. Deep Retrieval** | User needs to view data beyond the 256 local records. | **Fetch All**: Call `GET` to retrieve full cloud data and display it temporarily in UI. |
+| **D. Content Update** | Local record name is modified. | **Update**: POST with the same ID to update the corresponding row in the cloud. |
+| **E. Cloud Deletion** | Cloud row was manually deleted. | **Re-sync**: During full sync, if ID is missing from cloud, reset local status to `Pending` to re-upload. |
 
-## 4. Google Apps Script 代碼
-代碼已抽出至獨立檔案：`google-apps-script.js`。請將該檔案內容貼入 Google Apps Script 編輯器中進行部署。
+## 4. Google Apps Script Code
+The code is extracted to a separate file: `google-apps-script.js`. Please paste the content into the Google Apps Script editor for deployment.
 
-## 5. 本地容量管理邏輯 (LIFO + Sync Check)
+## 5. Local Capacity Management Logic (LIFO + Sync Check)
 
-當本地紀錄筆數 $N > 256$ 時，執行以下流程：
-1.  **篩選**: 找出所有 `syncStatus === 'synced'` 的項目。
-2.  **排序**: 依照 `timestamp` 排序。
-3.  **移除**: 刪除最舊的項目，直到本地紀錄回到 256 筆。
-4.  **保護**: 若項目尚未同步（`Pending` 或 `Error`），則 **禁止刪除**，直到同步成功。這能確保資料不會因空間不足而遺失。
+When local record count $N > 256$, follow this flow:
+1.  **Filter**: Identify all items where `syncStatus === 'synced'`.
+2.  **Sort**: Sort by `timestamp`.
+3.  **Remove**: Delete the oldest items until count reaches 256.
+4.  **Protection**: Items not yet synced (`Pending` or `Error`) are **strictly prohibited from deletion** to prevent data loss.
 
-## 6. UI/UX 深度歷史存取設計
+## 6. UI/UX Deep History Access Design
 
-### 6.1 歷史分層顯示
-- **常規檢視**: 載入本地 256 筆。
-- **底部按鈕**: 在歷史列表底部顯示「🔍 載入更多 (從雲端檢索)」。
+### 6.1 Layered History Display
+- **Regular View**: Load 256 local entries.
+- **Bottom Button**: Show "🔍 Load More from Cloud" at the bottom of the list.
 
-### 6.2 雲端同步狀態標示 (新增)
-- **Synced (✅)**: 存在於本地且雲端已有。
-- **Cloud-Only (🌐)**: 本地原本沒有，是點擊「載入更多」後從雲端拉下來的。
+### 6.2 Cloud Sync Indicators
+- **Synced (✅)**: Exists locally and confirmed in cloud.
+- **Cloud-Only (🌐)**: Items fetched via "Load More" that do not exist in local storage.
 
-## 7. 同步操作流程 (增強)
+## 7. Sync Operation Flow
 
-### 7.1 「恢復與同步」功能
-- 使用者更換手機時，點擊「Settings > Restore from Cloud」。
-- App 下載所有雲端紀錄，並僅將 **最新的 256 筆** 存入 `localStorage`。
+### 7.1 "Full Sync" (Restore & Sync)
+- When changing phones, click "Full Sync" in settings.
+- The app uploads local changes, detects missing cloud entries, and downloads all cloud records (keeping only the latest 256 locally).
 
-### 7.2 自動淘汰機制
-- 每次掃描後或 App 啟動時，背景自動執行「本地容量管理邏輯」，維持 App 的啟動速度。
+### 7.2 Automatic Pruning Mechanism
+- Background pruning runs after every scan or app launch to maintain startup speed.
 
-## 8. 邊緣案例預防
-- **本地儲存快滿**: 即使 256 筆 QR Code 文字量極小，仍會監控 `localStorage` 的 `quota`。
-- **ID 一致性**: 嚴格依賴 ID。若使用者在雲端手動刪除了一列，App 的同步機制會因 ID 消失而判定為 `Pending` 並重新上傳。
+## 8. Edge Case Prevention
+- **Storage Limit**: Monitors `localStorage` quota.
+- **ID Consistency**: Relies strictly on IDs. If a user deletes a row in Google Sheets, the app will detect the missing ID during Full Sync and mark the local item as `Pending` for re-upload.
 
-## 9. 同步模式詳細行為說明
+## 9. Sync Mode Detailed Behaviors
 
-### 9.1 Push Only (單向推播)
-- **行為**: 僅上傳本地標記為「未同步」或「同步失敗」的紀錄。
-- **適用時機**: 快速備份剛掃描的資料，節省流量。
-- **回饋訊息**:
-    - 有異動時: `📤 單向推播完成！成功上傳 X 筆異動。`
-    - 無異動時: `✅ 所有本地紀錄皆已同步至雲端。`
+### 9.1 Push Only
+- **Behavior**: Uploads only local records marked as "Pending" or "Error".
+- **Best for**: Quickly backing up new scans while saving data.
+- **Feedback**:
+    - If changes exist: `📤 Push complete! Successfully uploaded X changes.`
+    - If no changes: `✅ All local records are synced to the cloud.`
 
-### 9.2 Full Sync (雙向同步)
-- **行為**: 先推播本地異動，再下載雲端全量資料校對。
-- **合併規則**:
-    - 雲端新 ID -> **新增**至本地。
-    - ID 碰撞 -> **雲端覆蓋本地** (以雲端為最終事實)。
-    - 本地標記已同步但雲端缺失 -> **標記回 `pending` (待重新推播)**。
-- **適用時機**: 更換設備、手動校對資料、修正雲端手動刪除造成的失同步。
-- **回饋訊息**: 彈出詳細報告清單。
-    - `📤 本次成功上傳`: 本次推播成功的件數。
-    - `📥 從雲端新增`: 本地原本沒有的新紀錄。
-    - `🔄 雲端覆蓋更新`: ID 相同但內容依雲端更新的件數。
-    - `🛠️ 修正雲端缺失`: 發現本地已同步但雲端沒有，因而轉回 `pending` 的件數。
+### 9.2 Full Sync
+- **Behavior**: First pushes local changes, then downloads the full cloud dataset for audit and merge.
+- **Merge Rules**:
+    - New Cloud ID -> **Add** to local.
+    - ID Collision -> **Overwrite local with cloud** (Cloud is the "Source of Truth").
+    - Local "Synced" but missing on Cloud -> **Reset to `Pending`** (To re-push missing items).
+- **Best for**: Device migration, manual data auditing, or fixing desynchronization.
+- **Feedback**: Detailed report popup.
+    - `📤 Successfully Pushed`: Number of items uploaded.
+    - `📥 Added from Cloud`: New records pulled down.
+    - `🔄 Updated from Cloud`: Existing records refreshed.
+    - `🛠️ Fixed Cloud Missing`: Items found missing on cloud and reset to pending.

@@ -89,12 +89,12 @@ const App: React.FC = () => {
   };
 
   const syncAllPending = async () => {
-    if (!syncUrl) return alert("請先設定 Webhook URL。");
+    if (!syncUrl) return alert("Please set a Webhook URL first.");
     if (isSyncing) return;
 
     const pending = scans.filter(s => s.syncStatus !== 'synced');
     if (pending.length === 0) {
-      return alert("✅ 所有本地紀錄皆已同步至雲端。");
+      return alert("✅ All local records are synced to the cloud.");
     }
 
     setIsSyncing(true);
@@ -104,7 +104,7 @@ const App: React.FC = () => {
       if (success) successCount++;
     }
     setIsSyncing(false);
-    alert(`📤 單向推播完成！成功上傳 ${successCount} 筆異動。`);
+    alert(`📤 Push complete! Successfully uploaded ${successCount} changes.`);
   };
 
   const fetchCloudData = async () => {
@@ -131,12 +131,12 @@ const App: React.FC = () => {
 
   const restoreFromCloud = async () => {
     if (!syncUrl) return alert("Please set a Webhook URL first.");
-    if (!window.confirm("是否執行雙向同步？\n1. 上傳本地新異動\n2. 偵測並修正雲端缺失內容\n3. 下載雲端新紀錄")) return;
+    if (!window.confirm("Perform Full Sync?\n1. Push local changes\n2. Detect and fix missing cloud items\n3. Pull new cloud records")) return;
     performFullSync();
   };
 
   const performFullSync = async () => {
-    if (!syncUrl) return alert("請先設定 Webhook URL。");
+    if (!syncUrl) return alert("Please set a Webhook URL first.");
     setIsSyncing(true);
     
     let pushCount = 0;
@@ -145,14 +145,14 @@ const App: React.FC = () => {
     let markedAsPendingCount = 0;
 
     try {
-      // 1. 先推播目前已知的待處理項
+      // 1. Push current pending items
       const initialPending = scans.filter(s => s.syncStatus !== 'synced');
       for (const item of initialPending) {
         const success = await syncItem(item);
         if (success) pushCount++;
       }
 
-      // 2. 從雲端抓取最新全量資料
+      // 2. Fetch all from cloud
       const urlWithToken = `${syncUrl}${syncUrl.includes('?') ? '&' : '?'}token=${encodeURIComponent(syncToken)}`;
       const response = await fetch(urlWithToken);
       if (response.status === 401) throw new Error("Unauthorized");
@@ -162,15 +162,15 @@ const App: React.FC = () => {
         const cloudItems: ScanResult[] = cloudData.map((item: any) => ({ ...item, syncStatus: 'synced' }));
         const cloudIds = new Set(cloudItems.map(item => item.id));
 
-        // 3. 在外部計算 merge 結果
+        // 3. Calculate merge results
         const newScans = scans.map(localItem => {
-          // 偵測被手動刪除：本地認為已同步但雲端找不到 ID
+          // Detect cloud deletion
           if (localItem.syncStatus === 'synced' && !cloudIds.has(localItem.id)) {
             markedAsPendingCount++;
             return { ...localItem, syncStatus: 'pending' } as ScanResult;
           }
           
-          // 兩邊都有：以雲端最新內容為準
+          // Exists in both: update from cloud
           const cloudVersion = cloudItems.find(c => c.id === localItem.id);
           if (cloudVersion) {
             updatedFromCloud++;
@@ -180,30 +180,30 @@ const App: React.FC = () => {
           return localItem;
         });
 
-        // 找出完全不存在於本地的雲端項目 (真正的新下載)
+        // Items existing only on cloud
         const localIds = new Set(newScans.map(s => s.id));
         const toAddFromCloud = cloudItems.filter(c => !localIds.has(c.id));
         addedFromCloud = toAddFromCloud.length;
 
-        // 一次性更新狀態
+        // Bulk update state
         setScans([...toAddFromCloud, ...newScans].sort((a, b) => b.timestamp - a.timestamp));
         setCloudScans([]);
 
         const summary = [
-          "🔄 雙向同步結果報告",
+          "🔄 Full Sync Report",
           `--------------------`,
-          `📤 本次成功上傳：${pushCount} 筆`,
-          `📥 從雲端新增：${addedFromCloud} 筆`,
-          `🔄 雲端覆蓋更新：${updatedFromCloud} 筆`,
-          `🛠️ 修正雲端缺失：${markedAsPendingCount} 筆 (已轉回待同步)`,
+          `📤 Successfully Pushed: ${pushCount}`,
+          `📥 Added from Cloud: ${addedFromCloud}`,
+          `🔄 Updated from Cloud: ${updatedFromCloud}`,
+          `🛠️ Fixed Cloud Missing: ${markedAsPendingCount} (reset to pending)`,
           `--------------------`,
-          `同步完成。缺失項目將在下一次同步或點擊「Push Only」時重新上傳。`
+          `Sync complete. Missing items will be re-pushed in the next sync or by clicking 'Push Only'.`
         ].join('\n');
         
         alert(summary);
       }
     } catch (error: any) {
-      alert(error.message === "Unauthorized" ? "無效的 Sync Token！" : "同步失敗，請檢查 Webhook 設定。");
+      alert(error.message === "Unauthorized" ? "Invalid Sync Token!" : "Sync failed. Please check your Webhook settings.");
     } finally {
       setIsSyncing(false);
     }
@@ -344,7 +344,6 @@ const App: React.FC = () => {
                 <button onClick={syncAllPending} disabled={isSyncing || !syncUrl} className="p-4 rounded-3xl bg-slate-900 border border-slate-800 disabled:opacity-50 flex flex-col items-center"><i className="fas fa-arrow-up text-emerald-400 mb-2"></i><p className="text-[10px] font-bold uppercase">Push Only</p></button>
               </div>
 
-              {/* Data Management Section */}
               <div className="pt-4">
                 <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><i className="fas fa-database text-amber-400"></i> Data Management</h2>
                 <div className="grid grid-cols-2 gap-3">
