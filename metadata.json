@@ -1,5 +1,5 @@
 {
-  "name": "Smart Lens: QR Reader",
+  "name": "QR READER",
   "description": "A professional-grade QR code scanner to quickly read, copy, and open scanned data.",
   "requestFramePermissions": [
     "camera"

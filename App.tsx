@@ -327,8 +327,8 @@ const App: React.FC = () => {
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center shadow-lg shadow-sky-500/20"><i className="fas fa-qrcode text-xl text-white"></i></div>
             <div>
-              <h1 className="text-xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-r from-white to-slate-400">Smart Lens</h1>
-              <div className="flex items-center gap-1.5"><p className="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em]">QR Reader</p>{isCameraActive && <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>}</div>
+              <h1 className="text-xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">QR READER</h1>
+              <div className="flex items-center gap-1.5">{isCameraActive && <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>}</div>
             </div>
           </div>
           <button onClick={() => handleTabChange('settings')} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-95 ${activeTab === 'settings' ? 'bg-sky-500 text-white' : 'bg-slate-900 text-slate-500 hover:text-white'}`}><i className="fas fa-cog"></i></button>
