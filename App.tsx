@@ -131,7 +131,7 @@ const App: React.FC = () => {
 
   const restoreFromCloud = async () => {
     if (!syncUrl) return alert("Please set a Webhook URL first.");
-    if (!window.confirm("是否執行雙向同步？\n1. 上傳本地新異動\n2. 下載雲端新紀錄\n3. 本地獨有項目將保留")) return;
+    if (!window.confirm("是否執行雙向同步？\n1. 上傳本地新異動\n2. 偵測並修正雲端缺失內容\n3. 下載雲端新紀錄")) return;
     performFullSync();
   };
 
@@ -141,45 +141,51 @@ const App: React.FC = () => {
     
     let pushCount = 0;
     let addedFromCloud = 0;
-    let updatedInLocal = 0;
-    let localPreserved = 0;
+    let updatedFromCloud = 0;
+    let markedAsPending = 0;
 
     try {
-      const pending = scans.filter(s => s.syncStatus !== 'synced');
-      for (const item of pending) {
+      // 1. 先推播目前已知的待處理項
+      const initialPending = scans.filter(s => s.syncStatus !== 'synced');
+      for (const item of initialPending) {
         const success = await syncItem(item);
         if (success) pushCount++;
       }
 
+      // 2. 從雲端抓取最新全量資料
       const urlWithToken = `${syncUrl}${syncUrl.includes('?') ? '&' : '?'}token=${encodeURIComponent(syncToken)}`;
       const response = await fetch(urlWithToken);
       if (response.status === 401) throw new Error("Unauthorized");
       
-      const data = await response.json();
-      if (Array.isArray(data)) {
-        const cloudItems = data.map((item: any) => ({ ...item, syncStatus: 'synced' }));
-        const localIds = new Set(scans.map(s => s.id));
+      const cloudData = await response.json();
+      if (Array.isArray(cloudData)) {
+        const cloudItems = cloudData.map((item: any) => ({ ...item, syncStatus: 'synced' }));
         const cloudIds = new Set(cloudItems.map(item => item.id));
 
-        cloudItems.forEach((item: ScanResult) => {
-          if (localIds.has(item.id)) {
-            updatedInLocal++;
-          } else {
-            addedFromCloud++;
-          }
-        });
-
-        scans.forEach((item: ScanResult) => {
-          if (!cloudIds.has(item.id)) {
-            localPreserved++;
-          }
-        });
-
         setScans(prev => {
-          const mergedMap = new Map<string, ScanResult>();
-          prev.forEach(item => mergedMap.set(item.id, item));
-          cloudItems.forEach((item: ScanResult) => mergedMap.set(item.id, item));
-          return Array.from(mergedMap.values()).sort((a, b) => b.timestamp - a.timestamp);
+          const newScans = prev.map(localItem => {
+            // 如果本地認為已同步，但雲端沒這筆 ID -> 標記回待同步 (使用者可能在 Sheet 刪掉了)
+            if (localItem.syncStatus === 'synced' && !cloudIds.has(localItem.id)) {
+              markedAsPending++;
+              return { ...localItem, syncStatus: 'pending' } as ScanResult;
+            }
+            
+            // 如果兩邊都有，以雲端最新內容為準
+            const cloudVersion = cloudItems.find(c => c.id === localItem.id);
+            if (cloudVersion) {
+              updatedFromCloud++;
+              return cloudVersion;
+            }
+
+            return localItem;
+          });
+
+          // 找出完全不存在於本地的雲端項目
+          const localIds = new Set(newScans.map(s => s.id));
+          const toAdd = cloudItems.filter(c => !localIds.has(c.id));
+          addedFromCloud = toAdd.length;
+
+          return [...toAdd, ...newScans].sort((a, b) => b.timestamp - a.timestamp);
         });
         
         setCloudScans([]);
@@ -187,12 +193,12 @@ const App: React.FC = () => {
         const summary = [
           "🔄 雙向同步結果報告",
           `--------------------`,
-          `📤 上傳本地異動：${pushCount} 筆`,
+          `📤 本次成功上傳：${pushCount} 筆`,
           `📥 從雲端新增：${addedFromCloud} 筆`,
-          `🔄 更新現有內容：${updatedInLocal} 筆`,
-          `🛡️ 本地獨有保留：${localPreserved} 筆`,
+          `🔄 雲端覆蓋更新：${updatedFromCloud} 筆`,
+          `🛠️ 修正雲端缺失：${markedAsPending} 筆 (已轉回待同步)`,
           `--------------------`,
-          `目前本地庫共有 ${scans.length + addedFromCloud} 筆資料。`
+          `同步完成。缺失項目將在下次操作或點擊「Push Only」時重新補齊。`
         ].join('\n');
         
         alert(summary);
