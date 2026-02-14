@@ -80,14 +80,24 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
             }
             
             if (capabilities.zoom) {
-              setZoomCapabilities({
-                min: capabilities.zoom.min || 1,
-                max: capabilities.zoom.max || 1,
-                step: capabilities.zoom.step || 0.1
-              });
-              setZoom(capabilities.zoom.min || 1);
+              const min = capabilities.zoom.min || 1;
+              const max = capabilities.zoom.max || 1;
+              const step = capabilities.zoom.step || 0.1;
+              
+              setZoomCapabilities({ min, max, step });
+              
+              // FIX: Default to 1.0 if supported, otherwise min. 
+              // This prevents 0.5x label showing when camera is actually at 1.0x.
+              const initialZoom = (min <= 1 && max >= 1) ? 1 : min;
+              setZoom(initialZoom);
+              
+              // Force hardware to sync with our UI state immediately
+              track.applyConstraints({
+                advanced: [{ zoom: initialZoom }]
+              } as any).catch(e => console.error("Initial zoom sync failed", e));
             } else {
               setZoomCapabilities(null);
+              setZoom(1);
             }
           }, 500);
         };
