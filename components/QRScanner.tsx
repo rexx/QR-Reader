@@ -15,6 +15,8 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [hasTorch, setHasTorch] = useState(false);
   const [isTorchOn, setIsTorchOn] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [zoomCapabilities, setZoomCapabilities] = useState<{min: number, max: number, step: number} | null>(null);
   const requestRef = useRef<number | undefined>(undefined);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -64,13 +66,27 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
         videoRef.current.onloadedmetadata = () => {
           videoRef.current?.play().catch(console.error);
           setIsLoading(false);
+          
+          // Small delay to ensure tracks are active before querying capabilities
+          setTimeout(() => {
+            if (!streamRef.current) return;
+            const track = streamRef.current.getVideoTracks()[0];
+            const capabilities = track.getCapabilities() as any;
+            
+            if (capabilities.torch) {
+              setHasTorch(true);
+            }
+            
+            if (capabilities.zoom) {
+              setZoomCapabilities({
+                min: capabilities.zoom.min || 1,
+                max: capabilities.zoom.max || 1,
+                step: capabilities.zoom.step || 0.1
+              });
+              setZoom(capabilities.zoom.min || 1);
+            }
+          }, 500);
         };
-        
-        const track = stream.getVideoTracks()[0];
-        const capabilities = track.getCapabilities() as any;
-        if (capabilities.torch) {
-          setHasTorch(true);
-        }
       }
     } catch (err: any) {
       console.error("Camera access error:", err);
@@ -104,6 +120,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
       requestRef.current = undefined;
     }
     setIsTorchOn(false);
+    setZoomCapabilities(null);
   };
 
   const toggleTorch = async () => {
@@ -117,6 +134,20 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
       setIsTorchOn(newTorchState);
     } catch (e) {
       console.error("Failed to toggle torch", e);
+    }
+  };
+
+  const handleZoomChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseFloat(e.target.value);
+    setZoom(val);
+    if (!streamRef.current) return;
+    const track = streamRef.current.getVideoTracks()[0];
+    try {
+      await track.applyConstraints({
+        advanced: [{ zoom: val }]
+      } as any);
+    } catch (e) {
+      console.error("Failed to apply zoom", e);
     }
   };
 
@@ -134,7 +165,6 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
         const code = jsQR(imageData.data, imageData.width, imageData.height, {
           inversionAttempts: 'dontInvert',
         });
-        // 檢查 code 是否存在且內容不為空 (排除空字串或只有空格的情況)
         if (code && code.data && code.data.trim() !== '') {
           if (window.navigator.vibrate) window.navigator.vibrate(100);
           onScan(code.data);
@@ -166,16 +196,39 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
       <canvas ref={canvasRef} className="hidden" />
       
       {isActive && !isLoading && !error && (
-        <div className="absolute top-6 right-6 z-20">
-          {hasTorch && (
-            <button 
-              onClick={toggleTorch}
-              className={`w-12 h-12 rounded-full flex items-center justify-center ${isTorchOn ? 'bg-yellow-400 text-slate-900 shadow-[0_0_20px_rgba(250,204,21,0.5)]' : 'bg-black/50 text-white backdrop-blur-md border border-white/10'}`}
-            >
-              <i className="fas fa-bolt"></i>
-            </button>
+        <>
+          <div className="absolute top-6 right-6 z-20">
+            {hasTorch && (
+              <button 
+                onClick={toggleTorch}
+                className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${isTorchOn ? 'bg-yellow-400 text-slate-900 shadow-[0_0_20px_rgba(250,204,21,0.5)]' : 'bg-black/50 text-white backdrop-blur-md border border-white/10 hover:bg-black/70'}`}
+              >
+                <i className="fas fa-bolt"></i>
+              </button>
+            )}
+          </div>
+
+          {zoomCapabilities && zoomCapabilities.max > zoomCapabilities.min && (
+            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 w-3/4 flex flex-col items-center gap-2">
+              <div className="px-3 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[10px] font-bold text-sky-400 tabular-nums">
+                {zoom.toFixed(1)}x
+              </div>
+              <div className="w-full flex items-center gap-3 bg-black/40 backdrop-blur-md px-4 py-3 rounded-2xl border border-white/5">
+                <i className="fas fa-minus text-[10px] text-slate-500"></i>
+                <input 
+                  type="range" 
+                  min={zoomCapabilities.min}
+                  max={zoomCapabilities.max}
+                  step={zoomCapabilities.step}
+                  value={zoom}
+                  onChange={handleZoomChange}
+                  className="flex-1 accent-sky-500 h-1 bg-slate-700/50 rounded-full appearance-none cursor-pointer"
+                />
+                <i className="fas fa-plus text-[10px] text-slate-500"></i>
+              </div>
+            </div>
           )}
-        </div>
+        </>
       )}
 
       {!isActive && !isLoading && !error && (
