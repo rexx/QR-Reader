@@ -29,6 +29,7 @@ const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isStatsExpanded, setIsStatsExpanded] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState<{current: number, total: number, label: string} | null>(null);
   const [cloudScans, setCloudScans] = useState<ScanResult[]>([]);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -97,13 +98,20 @@ const App: React.FC = () => {
       return alert("✅ All local records are synced to the cloud.");
     }
 
+    if (!window.confirm(`Found ${pending.length} unsynced records. Push them to the cloud?`)) return;
+
     setIsSyncing(true);
+    setSyncProgress({ current: 0, total: pending.length, label: 'Pushing to cloud...' });
+    
     let successCount = 0;
-    for (const item of pending) { 
-      const success = await syncItem(item); 
+    for (let i = 0; i < pending.length; i++) {
+      const success = await syncItem(pending[i]); 
       if (success) successCount++;
+      setSyncProgress(prev => prev ? { ...prev, current: i + 1 } : null);
     }
+    
     setIsSyncing(false);
+    setSyncProgress(null);
     alert(`📤 Push complete! Successfully uploaded ${successCount} changes.`);
   };
 
@@ -147,10 +155,16 @@ const App: React.FC = () => {
     try {
       // 1. Push current pending items
       const initialPending = scans.filter(s => s.syncStatus !== 'synced');
-      for (const item of initialPending) {
-        const success = await syncItem(item);
-        if (success) pushCount++;
+      if (initialPending.length > 0) {
+        setSyncProgress({ current: 0, total: initialPending.length, label: 'Pushing local changes...' });
+        for (let i = 0; i < initialPending.length; i++) {
+          const success = await syncItem(initialPending[i]);
+          if (success) pushCount++;
+          setSyncProgress(prev => prev ? { ...prev, current: i + 1 } : null);
+        }
       }
+
+      setSyncProgress({ current: 0, total: 1, label: 'Fetching cloud database...' });
 
       // 2. Fetch all from cloud
       const urlWithToken = `${syncUrl}${syncUrl.includes('?') ? '&' : '?'}token=${encodeURIComponent(syncToken)}`;
@@ -159,6 +173,7 @@ const App: React.FC = () => {
       
       const cloudData = await response.json();
       if (Array.isArray(cloudData)) {
+        setSyncProgress({ current: 0, total: 1, label: 'Merging records...' });
         const cloudItems: ScanResult[] = cloudData.map((item: any) => ({ ...item, syncStatus: 'synced' }));
         const cloudIds = new Set(cloudItems.map(item => item.id));
 
@@ -200,12 +215,14 @@ const App: React.FC = () => {
           `Sync complete. Missing items will be re-pushed in the next sync or by clicking 'Push Only'.`
         ].join('\n');
         
+        setIsSyncing(false);
+        setSyncProgress(null);
         alert(summary);
       }
     } catch (error: any) {
-      alert(error.message === "Unauthorized" ? "Invalid Sync Token!" : "Sync failed. Please check your Webhook settings.");
-    } finally {
       setIsSyncing(false);
+      setSyncProgress(null);
+      alert(error.message === "Unauthorized" ? "Invalid Sync Token!" : "Sync failed. Please check your Webhook settings.");
     }
   };
 
@@ -314,6 +331,33 @@ const App: React.FC = () => {
 
   return (
     <div className="h-screen w-screen max-w-md mx-auto flex flex-col bg-slate-950 text-slate-100 shadow-2xl relative border-x border-slate-800 overflow-hidden">
+      {/* Progress Overlay */}
+      {isSyncing && syncProgress && (
+        <div className="absolute inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem] shadow-2xl flex flex-col items-center max-w-[80%]">
+            <div className="relative w-20 h-20 mb-6">
+              <svg className="w-full h-full -rotate-90">
+                <circle cx="40" cy="40" r="36" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-slate-800" />
+                <circle 
+                  cx="40" cy="40" r="36" stroke="currentColor" strokeWidth="4" fill="transparent" 
+                  strokeDasharray={226} 
+                  strokeDashoffset={226 - (226 * (syncProgress.current / syncProgress.total))} 
+                  strokeLinecap="round"
+                  className="text-sky-500 transition-all duration-300" 
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center font-black text-sm text-white">
+                {Math.round((syncProgress.current / syncProgress.total) * 100)}%
+              </div>
+            </div>
+            <h3 className="text-sm font-bold text-white mb-2">{syncProgress.label}</h3>
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+              Processing {syncProgress.current} / {syncProgress.total}
+            </p>
+          </div>
+        </div>
+      )}
+
       <header className="p-6 pb-4 border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-md z-30 shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -340,18 +384,18 @@ const App: React.FC = () => {
                 <input type="password" value={syncToken} onChange={(e) => setSyncToken(e.target.value)} placeholder="Enter your secret key" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs font-mono text-emerald-400" />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <button onClick={restoreFromCloud} disabled={isSyncing || !syncUrl} className="p-4 rounded-3xl bg-slate-900 border border-slate-800 disabled:opacity-50 flex flex-col items-center"><i className="fas fa-sync text-sky-400 mb-2"></i><p className="text-[10px] font-bold uppercase">Full Sync</p></button>
-                <button onClick={syncAllPending} disabled={isSyncing || !syncUrl} className="p-4 rounded-3xl bg-slate-900 border border-slate-800 disabled:opacity-50 flex flex-col items-center"><i className="fas fa-arrow-up text-emerald-400 mb-2"></i><p className="text-[10px] font-bold uppercase">Push Only</p></button>
+                <button onClick={restoreFromCloud} disabled={isSyncing || !syncUrl} className="p-4 rounded-3xl bg-slate-900 border border-slate-800 disabled:opacity-50 flex flex-col items-center transition-all active:scale-95"><i className="fas fa-sync text-sky-400 mb-2"></i><p className="text-[10px] font-bold uppercase">Full Sync</p></button>
+                <button onClick={syncAllPending} disabled={isSyncing || !syncUrl} className="p-4 rounded-3xl bg-slate-900 border border-slate-800 disabled:opacity-50 flex flex-col items-center transition-all active:scale-95"><i className="fas fa-arrow-up text-emerald-400 mb-2"></i><p className="text-[10px] font-bold uppercase">Push Only</p></button>
               </div>
 
               <div className="pt-4">
                 <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><i className="fas fa-database text-amber-400"></i> Data Management</h2>
                 <div className="grid grid-cols-2 gap-3">
-                  <button onClick={exportToJSON} className="p-4 rounded-3xl bg-slate-900 border border-slate-800 flex flex-col items-center">
+                  <button onClick={exportToJSON} className="p-4 rounded-3xl bg-slate-900 border border-slate-800 flex flex-col items-center active:scale-95 transition-all">
                     <i className="fas fa-file-export text-sky-400 mb-2"></i>
                     <p className="text-[10px] font-bold uppercase">Export JSON</p>
                   </button>
-                  <button onClick={() => jsonImportRef.current?.click()} className="p-4 rounded-3xl bg-slate-900 border border-slate-800 flex flex-col items-center">
+                  <button onClick={() => jsonImportRef.current?.click()} className="p-4 rounded-3xl bg-slate-900 border border-slate-800 flex flex-col items-center active:scale-95 transition-all">
                     <i className="fas fa-file-import text-amber-400 mb-2"></i>
                     <p className="text-[10px] font-bold uppercase">Import JSON</p>
                   </button>
@@ -362,7 +406,7 @@ const App: React.FC = () => {
           </div>
         ) : activeTab === 'upload' ? (
           <div className="flex-1 flex flex-col justify-center px-6">
-            <div onClick={() => fileInputRef.current?.click()} className="group relative cursor-pointer aspect-square rounded-[3rem] bg-slate-900 border-4 border-slate-800 hover:border-sky-500/50 shadow-2xl overflow-hidden flex flex-col items-center justify-center">
+            <div onClick={() => fileInputRef.current?.click()} className="group relative cursor-pointer aspect-square rounded-[3rem] bg-slate-900 border-4 border-slate-800 hover:border-sky-500/50 shadow-2xl overflow-hidden flex flex-col items-center justify-center transition-all active:scale-95">
               <div className="w-20 h-20 rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center mb-6 shadow-xl"><i className="fas fa-file-arrow-up text-3xl text-sky-400"></i></div>
               <h3 className="text-lg font-bold text-slate-100 mb-2">Upload Image</h3>
               <div className="mt-8 px-6 py-2.5 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 text-[10px] font-black uppercase tracking-[0.2em]">Select File</div>
@@ -391,7 +435,7 @@ const App: React.FC = () => {
           <div className="flex-1 flex flex-col overflow-hidden">
             {selectedResult ? (
               <div className="flex-1 flex flex-col overflow-hidden px-6 pt-6">
-                <button onClick={() => setSelectedResult(null)} className="flex items-center gap-2 text-slate-500 mb-6 text-[10px] font-bold uppercase"><i className="fas fa-chevron-left"></i> Back</button>
+                <button onClick={() => setSelectedResult(null)} className="flex items-center gap-2 text-slate-500 mb-6 text-[10px] font-bold uppercase transition-all hover:text-white"><i className="fas fa-chevron-left"></i> Back</button>
                 <div className="flex-1 scrollable-y pb-32">
                   <div className="p-6 rounded-[2.3rem] bg-slate-900 border border-slate-800">
                     <div className="flex justify-between items-start mb-4">
@@ -468,14 +512,14 @@ const App: React.FC = () => {
                           <div className="flex items-center gap-2">
                             {scan.syncStatus === 'synced' && <i className="fas fa-check-circle text-emerald-500 text-[10px]" title="Synced"></i>}
                             {scan.syncStatus === 'syncing' && <i className="fas fa-circle-notch animate-spin text-sky-400 text-[10px]"></i>}
-                            {!scan.isCloudOnly && <button onClick={e => handleDeleteScan(scan.id, e)} className="w-8 h-8 rounded-full flex items-center justify-center text-slate-700 hover:text-red-500 hover:bg-red-500/10"><i className="fas fa-trash text-xs"></i></button>}
+                            {!scan.isCloudOnly && <button onClick={e => handleDeleteScan(scan.id, e)} className="w-8 h-8 rounded-full flex items-center justify-center text-slate-700 hover:text-red-500 hover:bg-red-500/10 transition-all"><i className="fas fa-trash text-xs"></i></button>}
                           </div>
                         </div>
                       </div>
                     ))
                   )}
                   {syncUrl && (
-                    <button onClick={fetchCloudData} disabled={isSyncing} className="w-full p-4 border border-dashed border-slate-800 rounded-2xl text-[10px] font-bold uppercase text-slate-500 hover:text-sky-400 hover:border-sky-500/50 transition-all flex items-center justify-center gap-2">
+                    <button onClick={fetchCloudData} disabled={isSyncing} className="w-full p-4 border border-dashed border-slate-800 rounded-2xl text-[10px] font-bold uppercase text-slate-500 hover:text-sky-400 hover:border-sky-500/50 transition-all flex items-center justify-center gap-2 active:scale-95">
                       <i className={`fas ${isSyncing ? 'fa-circle-notch animate-spin' : 'fa-search'}`}></i>
                       {isSyncing ? 'Fetching...' : 'Load More from Cloud'}
                     </button>
