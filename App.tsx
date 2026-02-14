@@ -71,7 +71,7 @@ const App: React.FC = () => {
   }, [scans]);
 
   const syncItem = async (item: ScanResult) => {
-    if (!syncUrl) return;
+    if (!syncUrl) return false;
     setScans(prev => prev.map(s => s.id === item.id ? { ...s, syncStatus: 'syncing' } : s));
     try {
       await fetch(syncUrl, {
@@ -81,17 +81,30 @@ const App: React.FC = () => {
         body: JSON.stringify({ ...item, token: syncToken }),
       });
       setScans(prev => prev.map(s => s.id === item.id ? { ...s, syncStatus: 'synced' } : s));
+      return true;
     } catch (error) {
       setScans(prev => prev.map(s => s.id === item.id ? { ...s, syncStatus: 'error' } : s));
+      return false;
     }
   };
 
   const syncAllPending = async () => {
-    if (!syncUrl || isSyncing) return;
-    setIsSyncing(true);
+    if (!syncUrl) return alert("請先設定 Webhook URL。");
+    if (isSyncing) return;
+
     const pending = scans.filter(s => s.syncStatus !== 'synced');
-    for (const item of pending) { await syncItem(item); }
+    if (pending.length === 0) {
+      return alert("✅ 所有本地紀錄皆已同步完成，無需操作。");
+    }
+
+    setIsSyncing(true);
+    let successCount = 0;
+    for (const item of pending) { 
+      const success = await syncItem(item); 
+      if (success) successCount++;
+    }
     setIsSyncing(false);
+    alert(`同步完成！共成功同步 ${successCount} 筆資料。`);
   };
 
   const fetchCloudData = async () => {
