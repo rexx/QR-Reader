@@ -313,21 +313,7 @@ const App: React.FC = () => {
       {isSyncing && syncProgress && (
         <div className="absolute inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
           <div className="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem] shadow-2xl flex flex-col items-center max-w-[80%]">
-            <div className="relative w-20 h-20 mb-6">
-              <svg className="w-full h-full -rotate-90">
-                <circle cx="40" cy="40" r="36" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-slate-800" />
-                <circle 
-                  cx="40" cy="40" r="36" stroke="currentColor" strokeWidth="4" fill="transparent" 
-                  strokeDasharray={226} 
-                  strokeDashoffset={226 - (226 * (syncProgress.current / syncProgress.total))} 
-                  strokeLinecap="round"
-                  className="text-sky-500 transition-all duration-300" 
-                />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center font-black text-sm text-white">
-                {Math.round((syncProgress.current / syncProgress.total) * 100)}%
-              </div>
-            </div>
+            <div className="w-16 h-16 rounded-full border-4 border-slate-800 border-t-sky-500 animate-spin mb-6"></div>
             <h3 className="text-sm font-bold text-white mb-2">{syncProgress.label}</h3>
             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
               Processing {syncProgress.current} / {syncProgress.total}
@@ -352,42 +338,44 @@ const App: React.FC = () => {
       <main className="flex-1 overflow-hidden relative flex flex-col">
         {activeTab === 'settings' ? (
           <div className="flex-1 p-6 scrollable-y">
-            <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-sky-400"><i className="fas fa-cloud"></i> Cloud Sync</h2>
-            <div className="space-y-6">
-              <div className="p-5 rounded-3xl bg-slate-900 border border-slate-800 shadow-inner">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-3">Webhook URL</label>
-                <input type="text" value={syncUrl} onChange={(e) => setSyncUrl(e.target.value)} placeholder="https://script.google.com/macros/s/.../exec" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs font-mono text-sky-300 mb-4 focus:border-sky-500/50 outline-none transition-all" />
-                
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-3">Sync Token</label>
-                <input type="password" value={syncToken} onChange={(e) => setSyncToken(e.target.value)} placeholder="Enter secret key" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs font-mono text-emerald-400 focus:border-emerald-500/50 outline-none transition-all" />
-              </div>
+            <section className="mb-10">
+              <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-sky-400"><i className="fas fa-cloud"></i> Cloud Sync</h2>
+              <div className="space-y-6">
+                <div className="p-5 rounded-3xl bg-slate-900 border border-slate-800 shadow-inner">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-3">Webhook URL</label>
+                  <input type="text" value={syncUrl} onChange={(e) => setSyncUrl(e.target.value)} placeholder="https://script.google.com/macros/s/.../exec" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs font-mono text-sky-300 mb-4 focus:border-sky-500/50 outline-none transition-all" />
+                  
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-3">Sync Token</label>
+                  <input type="password" value={syncToken} onChange={(e) => setSyncToken(e.target.value)} placeholder="Enter secret key" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs font-mono text-emerald-400 focus:border-emerald-500/50 outline-none transition-all" />
+                </div>
 
-              <div className="grid grid-cols-2 gap-4 pt-2">
-                <button onClick={performPullSync} disabled={isSyncing || !syncUrl} className="w-full p-5 rounded-3xl bg-sky-500/10 border border-sky-500/20 disabled:opacity-30 flex flex-col items-center transition-all active:scale-95 hover:bg-sky-500/20 group">
-                  <i className="fas fa-cloud-download-alt text-sky-400 text-xl mb-2 group-hover:scale-110 transition-transform"></i>
-                  <p className="text-[11px] font-black uppercase tracking-wider text-sky-400">PULL</p>
-                </button>
-                <button onClick={performPushSync} disabled={isSyncing || !syncUrl} className="w-full p-5 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 disabled:opacity-30 flex flex-col items-center transition-all active:scale-95 hover:bg-emerald-500/20 group">
-                  <i className="fas fa-cloud-upload-alt text-emerald-400 text-xl mb-2 group-hover:scale-110 transition-transform"></i>
-                  <p className="text-[11px] font-black uppercase tracking-wider text-emerald-400">PUSH</p>
-                </button>
-              </div>
-
-              <div className="pt-4">
-                <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-amber-400"><i className="fas fa-database"></i> Data Management</h2>
                 <div className="grid grid-cols-2 gap-4">
-                  <button onClick={() => jsonImportRef.current?.click()} className="w-full p-5 rounded-3xl bg-sky-500/10 border border-sky-500/20 flex flex-col items-center active:scale-95 transition-all hover:bg-sky-500/20 group">
-                    <i className="fas fa-file-import text-sky-400 text-xl mb-2 group-hover:scale-110 transition-transform"></i>
-                    <p className="text-[11px] font-black uppercase tracking-wider text-sky-400">IMPORT</p>
+                  <button onClick={performPullSync} disabled={isSyncing || !syncUrl} className="w-full p-5 rounded-3xl bg-sky-500/10 border border-sky-500/20 disabled:opacity-30 flex flex-col items-center transition-all active:scale-95 hover:bg-sky-500/20 group">
+                    <i className="fas fa-cloud-download-alt text-sky-400 text-xl mb-2 group-hover:scale-110 transition-transform"></i>
+                    <p className="text-[11px] font-black uppercase tracking-wider text-sky-400">PULL</p>
                   </button>
-                  <button onClick={exportToJSON} className="w-full p-5 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 flex flex-col items-center active:scale-95 transition-all hover:bg-emerald-500/20 group">
-                    <i className="fas fa-file-export text-emerald-400 text-xl mb-2 group-hover:scale-110 transition-transform"></i>
-                    <p className="text-[11px] font-black uppercase tracking-wider text-emerald-400">EXPORT</p>
+                  <button onClick={performPushSync} disabled={isSyncing || !syncUrl} className="w-full p-5 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 disabled:opacity-30 flex flex-col items-center transition-all active:scale-95 hover:bg-emerald-500/20 group">
+                    <i className="fas fa-cloud-upload-alt text-emerald-400 text-xl mb-2 group-hover:scale-110 transition-transform"></i>
+                    <p className="text-[11px] font-black uppercase tracking-wider text-emerald-400">PUSH</p>
                   </button>
                 </div>
-                <input type="file" ref={jsonImportRef} onChange={handleJSONImport} accept=".json" className="hidden" />
               </div>
-            </div>
+            </section>
+
+            <section className="pt-4 border-t border-slate-800/50">
+              <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-amber-400"><i className="fas fa-database"></i> Data Management</h2>
+              <div className="grid grid-cols-2 gap-4">
+                <button onClick={() => jsonImportRef.current?.click()} className="w-full p-5 rounded-3xl bg-sky-500/10 border border-sky-500/20 flex flex-col items-center active:scale-95 transition-all hover:bg-sky-500/20 group">
+                  <i className="fas fa-file-import text-sky-400 text-xl mb-2 group-hover:scale-110 transition-transform"></i>
+                  <p className="text-[11px] font-black uppercase tracking-wider text-sky-400">IMPORT</p>
+                </button>
+                <button onClick={exportToJSON} className="w-full p-5 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 flex flex-col items-center active:scale-95 transition-all hover:bg-emerald-500/20 group">
+                  <i className="fas fa-file-export text-emerald-400 text-xl mb-2 group-hover:scale-110 transition-transform"></i>
+                  <p className="text-[11px] font-black uppercase tracking-wider text-emerald-400">EXPORT</p>
+                </button>
+              </div>
+              <input type="file" ref={jsonImportRef} onChange={handleJSONImport} accept=".json" className="hidden" />
+            </section>
           </div>
         ) : activeTab === 'upload' ? (
           <div className="flex-1 flex flex-col justify-center px-6">
