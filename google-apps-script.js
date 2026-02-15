@@ -1,13 +1,29 @@
 /**
- * Smart Lens: Google Sheets Sync Backend (Secure Version - Fixed)
+ * Smart Lens: Google Sheets Sync Backend (Secure Version - Batch Optimized)
  */
 
 // ⚠️ 請修改此密鑰，並同步在 App 設定中填入相同的值
 var WEBHOOK_TOKEN = "MY_SECRET_KEY_123"; 
 
+/**
+ * 統一驗證函數：支援從 URL 參數或 POST Body 中提取 Token
+ */
 function validate(e) {
-  var token = e.parameter.token || (e.postData && JSON.parse(e.postData.contents).token);
-  return token === WEBHOOK_TOKEN;
+  // 1. 優先檢查 URL 參數 (適用於 GET 和部分 POST)
+  var token = e.parameter.token;
+  if (token === WEBHOOK_TOKEN) return true;
+
+  // 2. 如果參數中沒有，且是 POST 請求，則檢查 JSON Body
+  if (e.postData && e.postData.contents) {
+    try {
+      var contents = JSON.parse(e.postData.contents);
+      return contents.token === WEBHOOK_TOKEN;
+    } catch (err) {
+      return false;
+    }
+  }
+  
+  return false;
 }
 
 function doGet(e) {
@@ -21,10 +37,7 @@ function doGet(e) {
   
   var result = rows.map(function(row) {
     var ts = row[1] instanceof Date ? row[1].getTime() : new Date(row[1]).getTime();
-    
-    // 強制將名稱轉換為字串，避免 0 被視為 false
     var nameVal = (row[2] !== null && row[2] !== undefined) ? String(row[2]) : "";
-    
     return { 
       id: row[0], 
       timestamp: isNaN(ts) ? Date.now() : ts, 
@@ -42,37 +55,52 @@ function doPost(e) {
   if (!validate(e)) return ContentService.createTextOutput("Unauthorized").setStatusCode(401);
   
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  var data = JSON.parse(e.postData.contents);
+  var payload = JSON.parse(e.postData.contents);
   
+  // Ensure headers exist
   if (sheet.getLastRow() === 0) {
     sheet.appendRow(["ID", "Timestamp", "Name", "Data", "Type"]);
   }
+
+  // 統一從 payload.items 讀取項目陣列
+  var itemsToProcess = (payload.items && Array.isArray(payload.items)) ? payload.items : [];
+
+  if (itemsToProcess.length === 0) {
+    return ContentService.createTextOutput(JSON.stringify({ "status": "no_data" })).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // Cache existing IDs to avoid repeated spreadsheet reads
+  var idColumn = sheet.getRange(1, 1, sheet.getLastRow(), 1).getValues().map(function(r) { return String(r[0]); });
   
-  var rows = sheet.getDataRange().getValues();
-  var foundIndex = -1;
-  for (var i = 0; i < rows.length; i++) {
-    if (rows[i][0] === data.id) {
-      foundIndex = i + 1;
-      break;
+  var updatedCount = 0;
+  var addedCount = 0;
+
+  itemsToProcess.forEach(function(item) {
+    var safeName = (item.name !== null && item.name !== undefined && item.name !== "") ? String(item.name) : "";
+    var rowData = [
+      String(item.id), 
+      new Date(Number(item.timestamp)), 
+      safeName, 
+      item.data, 
+      item.type
+    ];
+
+    var foundIndex = idColumn.indexOf(String(item.id));
+    
+    if (foundIndex > -1) {
+      sheet.getRange(foundIndex + 1, 1, 1, 5).setValues([rowData]);
+      updatedCount++;
+    } else {
+      sheet.appendRow(rowData);
+      idColumn.push(String(item.id));
+      addedCount++;
     }
-  }
+  });
 
-  // 使用明確的 null 檢查，允許 "0" 字串或 0 數字
-  var safeName = (data.name !== null && data.name !== undefined && data.name !== "") ? String(data.name) : "";
-
-  var rowData = [
-    data.id, 
-    new Date(Number(data.timestamp)), 
-    safeName, 
-    data.data, 
-    data.type
-  ];
-
-  if (foundIndex > -1) {
-    sheet.getRange(foundIndex, 1, 1, 5).setValues([rowData]);
-    return ContentService.createTextOutput(JSON.stringify({"status": "updated"})).setMimeType(ContentService.MimeType.JSON);
-  } else {
-    sheet.appendRow(rowData);
-    return ContentService.createTextOutput(JSON.stringify({"status": "success"})).setMimeType(ContentService.MimeType.JSON);
-  }
+  return ContentService.createTextOutput(JSON.stringify({
+    "status": "success",
+    "added": addedCount,
+    "updated": updatedCount,
+    "totalProcessed": itemsToProcess.length
+  })).setMimeType(ContentService.MimeType.JSON);
 }

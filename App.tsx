@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { ScanResult } from './types';
 import QRScanner from './components/QRScanner';
@@ -79,7 +78,7 @@ const App: React.FC = () => {
         method: 'POST',
         mode: 'no-cors',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...item, token: syncToken }),
+        body: JSON.stringify({ token: syncToken, items: [item] }), // 統一使用 items 陣列發送
       });
       setScans(prev => prev.map(s => s.id === item.id ? { ...s, syncStatus: 'synced' } : s));
       return true;
@@ -98,21 +97,37 @@ const App: React.FC = () => {
       return alert("✅ All local records are synced to the cloud.");
     }
 
-    if (!window.confirm(`Found ${pending.length} unsynced records. Push them to the cloud?`)) return;
+    if (!window.confirm(`Found ${pending.length} unsynced records. Push them all to the cloud now?`)) return;
 
     setIsSyncing(true);
-    setSyncProgress({ current: 0, total: pending.length, label: 'Pushing to cloud...' });
+    setSyncProgress({ current: 0, total: 1, label: `Pushing ${pending.length} records...` });
     
-    let successCount = 0;
-    for (let i = 0; i < pending.length; i++) {
-      const success = await syncItem(pending[i]); 
-      if (success) successCount++;
-      setSyncProgress(prev => prev ? { ...prev, current: i + 1 } : null);
+    try {
+      await fetch(syncUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          token: syncToken, 
+          items: pending 
+        }),
+      });
+
+      setScans(prev => prev.map(s => {
+        if (s.syncStatus !== 'synced') {
+          return { ...s, syncStatus: 'synced' };
+        }
+        return s;
+      }));
+      
+      alert(`📤 Batch push complete! ${pending.length} records synced.`);
+    } catch (error) {
+      console.error("Batch push failed", error);
+      alert("Push failed. Please check your connection or Webhook URL.");
+    } finally {
+      setIsSyncing(false);
+      setSyncProgress(null);
     }
-    
-    setIsSyncing(false);
-    setSyncProgress(null);
-    alert(`📤 Push complete! Successfully uploaded ${successCount} changes.`);
   };
 
   const performPullSync = async () => {
@@ -314,10 +329,12 @@ const App: React.FC = () => {
         <div className="absolute inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
           <div className="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem] shadow-2xl flex flex-col items-center max-w-[80%]">
             <div className="w-16 h-16 rounded-full border-4 border-slate-800 border-t-sky-500 animate-spin mb-6"></div>
-            <h3 className="text-sm font-bold text-white mb-2">{syncProgress.label}</h3>
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-              Processing {syncProgress.current} / {syncProgress.total}
-            </p>
+            <h3 className="text-sm font-bold text-white mb-2 text-center">{syncProgress.label}</h3>
+            {syncProgress.total > 1 && (
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                Processing {syncProgress.current} / {syncProgress.total}
+              </p>
+            )}
           </div>
         </div>
       )}
