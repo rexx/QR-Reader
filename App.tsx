@@ -72,14 +72,27 @@ const App: React.FC = () => {
 
   const syncItem = async (item: ScanResult) => {
     if (!syncUrl) return false;
+    if (!syncToken) {
+      setScans(prev => prev.map(s => s.id === item.id ? { ...s, syncStatus: 'error' } : s));
+      return false;
+    }
+
     setScans(prev => prev.map(s => s.id === item.id ? { ...s, syncStatus: 'syncing' } : s));
     try {
-      await fetch(syncUrl, {
+      const response = await fetch(syncUrl, {
         method: 'POST',
-        mode: 'no-cors',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: syncToken, items: [item] }), // 統一使用 items 陣列發送
+        body: JSON.stringify({ token: syncToken, items: [item] }),
       });
+      
+      const resData = await response.json();
+      // 在 200-Wrapping 模式下，錯誤資訊封裝在 JSON status 中
+      if (resData.status === 'error') {
+        setScans(prev => prev.map(s => s.id === item.id ? { ...s, syncStatus: 'error' } : s));
+        console.error("Sync failed:", resData.message);
+        return false;
+      }
+
       setScans(prev => prev.map(s => s.id === item.id ? { ...s, syncStatus: 'synced' } : s));
       return true;
     } catch (error) {
@@ -90,6 +103,7 @@ const App: React.FC = () => {
 
   const performPushSync = async () => {
     if (!syncUrl) return alert("Please set a Webhook URL first.");
+    if (!syncToken) return alert("Please set a Sync Token in settings first.");
     if (isSyncing) return;
 
     const pending = scans.filter(s => s.syncStatus !== 'synced');
@@ -103,15 +117,19 @@ const App: React.FC = () => {
     setSyncProgress({ current: 0, total: 1, label: `Pushing ${pending.length} records...` });
     
     try {
-      await fetch(syncUrl, {
+      const response = await fetch(syncUrl, {
         method: 'POST',
-        mode: 'no-cors',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           token: syncToken, 
           items: pending 
         }),
       });
+
+      const resData = await response.json();
+      if (resData.status === 'error' && resData.message === 'Unauthorized') {
+        throw new Error("Unauthorized");
+      }
 
       setScans(prev => prev.map(s => {
         if (s.syncStatus !== 'synced') {
@@ -121,9 +139,8 @@ const App: React.FC = () => {
       }));
       
       alert(`📤 Batch push complete! ${pending.length} records synced.`);
-    } catch (error) {
-      console.error("Batch push failed", error);
-      alert("Push failed. Please check your connection or Webhook URL.");
+    } catch (error: any) {
+      alert(error.message === "Unauthorized" ? "❌ Invalid Sync Token! Verification failed." : "Push failed. Please check your Webhook URL.");
     } finally {
       setIsSyncing(false);
       setSyncProgress(null);
@@ -134,26 +151,29 @@ const App: React.FC = () => {
     if (!syncUrl) return alert("Please set a Webhook URL first.");
     if (isSyncing) return;
 
-    if (!window.confirm("Perform Pull Sync (Audit & Merge)?\nThis will fetch cloud data to update your local history.")) return;
+    if (!window.confirm("Perform Pull Sync (Audit & Merge)?")) return;
 
     setIsSyncing(true);
     setSyncProgress({ current: 0, total: 1, label: 'Connecting to cloud...' });
 
-    let addedCount = 0;
-    let updatedCount = 0;
-    let resetCount = 0;
-
     try {
       const urlWithToken = `${syncUrl}${syncUrl.includes('?') ? '&' : '?'}token=${encodeURIComponent(syncToken)}`;
       const response = await fetch(urlWithToken);
-      if (response.status === 401) throw new Error("Unauthorized");
-      
       const cloudData = await response.json();
+
+      // 檢查 GAS 封裝在 200 回應中的 Unauthorized 訊息
+      if (cloudData.status === 'error' && cloudData.message === 'Unauthorized') {
+        throw new Error("Unauthorized");
+      }
+      
       if (Array.isArray(cloudData)) {
         setSyncProgress({ current: 0, total: 1, label: 'Merging records...' });
         
         const cloudItems: ScanResult[] = cloudData.slice(0, 250).map((item: any) => ({ ...item, syncStatus: 'synced' }));
         const cloudIds = new Set(cloudItems.map(item => item.id));
+
+        let updatedCount = 0;
+        let resetCount = 0;
 
         const auditedLocalScans = scans.map(localItem => {
           if (localItem.syncStatus === 'synced' && !cloudIds.has(localItem.id)) {
@@ -170,7 +190,6 @@ const App: React.FC = () => {
 
         const localIds = new Set(auditedLocalScans.map(s => s.id));
         const toRestoreFromCloud = cloudItems.filter(c => !localIds.has(c.id));
-        addedCount = toRestoreFromCloud.length;
 
         const merged = [...toRestoreFromCloud, ...auditedLocalScans].sort((a, b) => b.timestamp - a.timestamp);
         setScans(merged);
@@ -179,21 +198,20 @@ const App: React.FC = () => {
         const summary = [
           "📥 Pull Sync Report",
           `--------------------`,
-          `🆕 Added (Restore): ${addedCount}`,
+          `🆕 Added (Restore): ${toRestoreFromCloud.length}`,
           `🔄 Updated (Conflict): ${updatedCount}`,
           `🛠️ Reset to Pending: ${resetCount}`,
           `--------------------`,
           `Pull complete.`
         ].join('\n');
         
-        setIsSyncing(false);
-        setSyncProgress(null);
         alert(summary);
       }
     } catch (error: any) {
+      alert(error.message === "Unauthorized" || error.message?.includes("Unexpected token") ? "❌ Invalid Sync Token!" : "Pull failed. Connection error.");
+    } finally {
       setIsSyncing(false);
       setSyncProgress(null);
-      alert(error.message === "Unauthorized" ? "Invalid Sync Token!" : "Pull failed.");
     }
   };
 
@@ -203,8 +221,12 @@ const App: React.FC = () => {
     try {
       const urlWithToken = `${syncUrl}${syncUrl.includes('?') ? '&' : '?'}token=${encodeURIComponent(syncToken)}`;
       const response = await fetch(urlWithToken);
-      if (response.status === 401) throw new Error("Unauthorized");
       const data = await response.json();
+      
+      if (data.status === 'error' && data.message === 'Unauthorized') {
+        throw new Error("Unauthorized");
+      }
+
       if (Array.isArray(data)) {
         const localIds = new Set(scans.map(s => s.id));
         const newCloudItems = data
@@ -213,7 +235,7 @@ const App: React.FC = () => {
         setCloudScans(newCloudItems);
       }
     } catch (error: any) {
-      alert(error.message === "Unauthorized" ? "Invalid Sync Token!" : "Failed to fetch cloud data.");
+      alert(error.message === "Unauthorized" ? "❌ Invalid Sync Token!" : "Failed to fetch cloud data.");
     } finally {
       setIsSyncing(false);
     }
@@ -502,6 +524,7 @@ const App: React.FC = () => {
                           <div className="flex items-center gap-2">
                             {scan.syncStatus === 'synced' && <i className="fas fa-check-circle text-emerald-500 text-[10px]" title="Synced"></i>}
                             {scan.syncStatus === 'syncing' && <i className="fas fa-circle-notch animate-spin text-sky-400 text-[10px]"></i>}
+                            {scan.syncStatus === 'error' && <i className="fas fa-exclamation-circle text-red-500 text-[10px]" title="Sync Error / Token Missing"></i>}
                             {!scan.isCloudOnly && <button onClick={e => handleDeleteScan(scan.id, e)} className="w-8 h-8 rounded-full flex items-center justify-center text-slate-700 hover:text-red-500 hover:bg-red-500/10 transition-all"><i className="fas fa-trash text-xs"></i></button>}
                           </div>
                         </div>

@@ -8,9 +8,8 @@ This specification defines the synchronization logic between the Smart Lens web 
 ### 2.1 Protocol & Data Format
 - **PULL (GET)**: Used to retrieve the full list of records from the spreadsheet.
     - URL Parameter: `token=[SECRET_KEY]` for authentication.
-    - Response: JSON array of `ScanResult` objects.
+    - Response: JSON array of `ScanResult` objects OR error JSON.
 - **PUSH (POST)**: Used to upload one or more records.
-    - Security: Token can be passed via URL parameter `?token=...` or inside the JSON Body.
     - Data Structure: **All uploads are batch-wrapped**.
       ```json
       {
@@ -40,15 +39,24 @@ The PULL operation follows a strict auditing sequence to maintain integrity:
 2.  **Update**: Matching IDs are updated with cloud content (names, corrected data).
 3.  **Audit Reset**: If a local item is marked as `synced` but is no longer present on the Cloud (e.g., manually deleted from the Sheet), it is reset to `pending` so the user can decide to push it back or delete it.
 
-## 4. Local Capacity & Performance
+## 4. Platform Constraints & Error Handling (200-Wrapping)
 
-### 4.1 Local Storage Management
-- **Local Limit**: 256 records.
-- **Pruning Logic**: When the limit is reached, the system automatically removes the **oldest already-synced** items. Items marked as `pending` (unsynced) are never automatically deleted to prevent data loss.
+### 4.1 Google Apps Script Limitations
+Google Apps Script (GAS) has two major architectural limitations regarding API development:
+1.  **Redirects**: GAS endpoints automatically redirect (`302`) to a temporary Google user-content domain. 
+2.  **CORS & Status Codes**: When returning non-200 status codes (like `401 Unauthorized`), the Google redirect service often drops CORS headers, causing the browser to block the response body and report a generic "CORS Error" or "Network Error".
 
-### 4.2 GAS Optimization
-- The backend caches the ID column in memory during a batch execution to minimize spreadsheet read operations, ensuring performance even when uploading many records at once.
+### 4.2 The "200-Wrapping" Workaround
+To ensure the web app can reliably detect authentication failures and provide user feedback:
+- **Strategy**: The backend **always** returns an HTTP `200 OK` status code.
+- **Data Structure**: The actual success or failure state is encapsulated within the JSON response body using a `status` field.
+  - **Success**: Returns the data directly (for GET) or `{"status": "success", ...}` (for POST).
+  - **Error**: Returns `{"status": "error", "message": "Unauthorized"}` or similar.
 
 ## 5. Security
 - Access to both `doGet` and `doPost` requires a `WEBHOOK_TOKEN` match. 
-- Requests without a valid token return a `401 Unauthorized` status.
+- Authentication fails if the provided token is missing or incorrect.
+
+## 6. User Feedback
+- **Token Validation**: The client parses every JSON response. If `res.status === "error"`, it triggers an immediate "Invalid Sync Token!" alert.
+- **Visual Indicators**: Sync errors are displayed in the history list to notify users of pending uploads that failed due to authentication.

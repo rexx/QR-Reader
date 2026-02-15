@@ -9,11 +9,9 @@ var WEBHOOK_TOKEN = "MY_SECRET_KEY_123";
  * 統一驗證函數：支援從 URL 參數或 POST Body 中提取 Token
  */
 function validate(e) {
-  // 1. 優先檢查 URL 參數 (適用於 GET 和部分 POST)
   var token = e.parameter.token;
   if (token === WEBHOOK_TOKEN) return true;
 
-  // 2. 如果參數中沒有，且是 POST 請求，則檢查 JSON Body
   if (e.postData && e.postData.contents) {
     try {
       var contents = JSON.parse(e.postData.contents);
@@ -22,12 +20,24 @@ function validate(e) {
       return false;
     }
   }
-  
   return false;
 }
 
+/**
+ * 200-Wrapping 錯誤回應：
+ * GAS 平台限制：若回傳 401，Google 重導向機制會丟失 CORS 標頭導致前端無法讀取。
+ * 因此我們一律回傳 200 OK，並將錯誤碼封裝在 JSON 中。
+ */
+function errorResponse(msg) {
+  return ContentService.createTextOutput(JSON.stringify({ 
+    "status": "error", 
+    "message": msg,
+    "code": 401 
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
 function doGet(e) {
-  if (!validate(e)) return ContentService.createTextOutput("Unauthorized").setStatusCode(401);
+  if (!validate(e)) return errorResponse("Unauthorized");
   
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   if (sheet.getLastRow() < 2) return ContentService.createTextOutput(JSON.stringify([])).setMimeType(ContentService.MimeType.JSON);
@@ -52,26 +62,26 @@ function doGet(e) {
 }
 
 function doPost(e) {
-  if (!validate(e)) return ContentService.createTextOutput("Unauthorized").setStatusCode(401);
+  if (!validate(e)) return errorResponse("Unauthorized");
   
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  var payload = JSON.parse(e.postData.contents);
+  var payload;
+  try {
+    payload = JSON.parse(e.postData.contents);
+  } catch(err) {
+    return errorResponse("Invalid JSON");
+  }
   
-  // Ensure headers exist
   if (sheet.getLastRow() === 0) {
     sheet.appendRow(["ID", "Timestamp", "Name", "Data", "Type"]);
   }
 
-  // 統一從 payload.items 讀取項目陣列
   var itemsToProcess = (payload.items && Array.isArray(payload.items)) ? payload.items : [];
-
   if (itemsToProcess.length === 0) {
-    return ContentService.createTextOutput(JSON.stringify({ "status": "no_data" })).setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ "status": "success", "added": 0, "updated": 0 })).setMimeType(ContentService.MimeType.JSON);
   }
 
-  // Cache existing IDs to avoid repeated spreadsheet reads
   var idColumn = sheet.getRange(1, 1, sheet.getLastRow(), 1).getValues().map(function(r) { return String(r[0]); });
-  
   var updatedCount = 0;
   var addedCount = 0;
 
@@ -86,7 +96,6 @@ function doPost(e) {
     ];
 
     var foundIndex = idColumn.indexOf(String(item.id));
-    
     if (foundIndex > -1) {
       sheet.getRange(foundIndex + 1, 1, 1, 5).setValues([rowData]);
       updatedCount++;
