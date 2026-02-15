@@ -79,17 +79,16 @@ const App: React.FC = () => {
 
     setScans(prev => prev.map(s => s.id === item.id ? { ...s, syncStatus: 'syncing' } : s));
     try {
+      // Use text/plain to avoid OPTIONS preflight while keeping ability to read response
       const response = await fetch(syncUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({ token: syncToken, items: [item] }),
       });
       
       const resData = await response.json();
-      // 在 200-Wrapping 模式下，錯誤資訊封裝在 JSON status 中
       if (resData.status === 'error') {
         setScans(prev => prev.map(s => s.id === item.id ? { ...s, syncStatus: 'error' } : s));
-        console.error("Sync failed:", resData.message);
         return false;
       }
 
@@ -117,9 +116,10 @@ const App: React.FC = () => {
     setSyncProgress({ current: 0, total: 1, label: `Pushing ${pending.length} records...` });
     
     try {
+      // Use text/plain to avoid OPTIONS preflight while keeping ability to read response
       const response = await fetch(syncUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({ 
           token: syncToken, 
           items: pending 
@@ -129,6 +129,8 @@ const App: React.FC = () => {
       const resData = await response.json();
       if (resData.status === 'error' && resData.message === 'Unauthorized') {
         throw new Error("Unauthorized");
+      } else if (resData.status === 'error') {
+        throw new Error(resData.message || "Unknown error");
       }
 
       setScans(prev => prev.map(s => {
@@ -140,7 +142,7 @@ const App: React.FC = () => {
       
       alert(`📤 Batch push complete! ${pending.length} records synced.`);
     } catch (error: any) {
-      alert(error.message === "Unauthorized" ? "❌ Invalid Sync Token! Verification failed." : "Push failed. Please check your Webhook URL.");
+      alert(error.message === "Unauthorized" ? "❌ Invalid Sync Token! Verification failed." : `Push failed. ${error.message || "Please check your Webhook URL."}`);
     } finally {
       setIsSyncing(false);
       setSyncProgress(null);
@@ -161,7 +163,6 @@ const App: React.FC = () => {
       const response = await fetch(urlWithToken);
       const cloudData = await response.json();
 
-      // 檢查 GAS 封裝在 200 回應中的 Unauthorized 訊息
       if (cloudData.status === 'error' && cloudData.message === 'Unauthorized') {
         throw new Error("Unauthorized");
       }

@@ -10,7 +10,8 @@ This specification defines the synchronization logic between the Smart Lens web 
     - URL Parameter: `token=[SECRET_KEY]` for authentication.
     - Response: JSON array of `ScanResult` objects OR error JSON.
 - **PUSH (POST)**: Used to upload one or more records.
-    - Data Structure: **All uploads are batch-wrapped**.
+    - **Crucial Tech Note**: To avoid CORS Preflight (`OPTIONS` request) which GAS does not support, we use `Content-Type: text/plain`. This classifies the POST as a "Simple Request", allowing the browser to read the response body after the mandatory Google redirect.
+    - Data Structure (Body as JSON String):
       ```json
       {
         "token": "YOUR_SECRET_KEY",
@@ -44,7 +45,7 @@ The PULL operation follows a strict auditing sequence to maintain integrity:
 ### 4.1 Google Apps Script Limitations
 Google Apps Script (GAS) has two major architectural limitations regarding API development:
 1.  **Redirects**: GAS endpoints automatically redirect (`302`) to a temporary Google user-content domain. 
-2.  **CORS & Status Codes**: When returning non-200 status codes (like `401 Unauthorized`), the Google redirect service often drops CORS headers, causing the browser to block the response body and report a generic "CORS Error" or "Network Error".
+2.  **CORS & Status Codes**: When returning non-200 status codes (like `401 Unauthorized`), the Google redirect service often drops CORS headers, causing the browser to block the response body and report a generic "CORS Error".
 
 ### 4.2 The "200-Wrapping" Workaround
 To ensure the web app can reliably detect authentication failures and provide user feedback:
