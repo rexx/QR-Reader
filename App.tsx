@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { ScanResult } from './types';
 import QRScanner from './components/QRScanner';
@@ -168,7 +169,6 @@ const App: React.FC = () => {
       if (Array.isArray(cloudData)) {
         setSyncProgress({ current: 0, total: 1, label: 'Merging records...' });
         
-        // 重要：轉換雲端 ID 為字串進行比對
         const cloudItems: ScanResult[] = cloudData.slice(0, 500).map((item: any) => ({ ...item, id: String(item.id), syncStatus: 'synced' }));
         const cloudIds = new Set(cloudItems.map(item => String(item.id)));
 
@@ -184,7 +184,7 @@ const App: React.FC = () => {
           const cloudVersion = cloudItems.find(c => String(c.id) === localId);
           if (cloudVersion) {
             updatedCount++;
-            return { ...cloudVersion, id: localId }; // 保持本地 ID 字串型別
+            return { ...cloudVersion, id: localId }; 
           }
           return localItem;
         });
@@ -279,6 +279,14 @@ const App: React.FC = () => {
     reader.readAsText(file);
   };
 
+  const clearAllLocalData = () => {
+    if (window.confirm("⚠️ Are you sure you want to clear ALL local history? This action cannot be undone unless you have a cloud backup.")) {
+      setScans([]);
+      localStorage.removeItem(SCAN_HISTORY_KEY);
+      alert("Local history cleared successfully.");
+    }
+  };
+
   const handleTabChange = (tab: 'upload' | 'scanner' | 'history' | 'settings') => {
     setActiveTab(tab);
     setSelectedResult(null);
@@ -326,7 +334,6 @@ const App: React.FC = () => {
     const query = searchQuery.toLowerCase();
     
     return combined.filter(scan => {
-      // 魯棒性處理：確保所有比對欄位都是字串，避免數字型別導致搜尋異常
       const name = (scan.name !== undefined && scan.name !== null) ? String(scan.name) : "";
       const data = (scan.data !== undefined && scan.data !== null) ? String(scan.data) : "";
       
@@ -374,7 +381,7 @@ const App: React.FC = () => {
 
       <main className="flex-1 overflow-hidden relative flex flex-col">
         {activeTab === 'settings' ? (
-          <div className="flex-1 p-6 scrollable-y">
+          <div className="flex-1 p-6 scrollable-y pb-32">
             <section className="mb-10">
               <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-sky-400"><i className="fas fa-cloud"></i> Cloud Sync</h2>
               <div className="space-y-6">
@@ -399,7 +406,7 @@ const App: React.FC = () => {
               </div>
             </section>
 
-            <section className="pt-4 border-t border-slate-800/50">
+            <section className="pt-4 border-t border-slate-800/50 mb-10">
               <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-amber-400"><i className="fas fa-database"></i> Data Management</h2>
               <div className="grid grid-cols-2 gap-4">
                 <button onClick={() => jsonImportRef.current?.click()} className="w-full p-5 rounded-3xl bg-sky-500/10 border border-sky-500/20 flex flex-col items-center active:scale-95 transition-all hover:bg-sky-500/20 group">
@@ -412,6 +419,17 @@ const App: React.FC = () => {
                 </button>
               </div>
               <input type="file" ref={jsonImportRef} onChange={handleJSONImport} accept=".json" className="hidden" />
+            </section>
+
+            <section className="pt-8 border-t border-red-500/20 mt-8">
+              <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-red-500"><i className="fas fa-exclamation-triangle"></i> Danger Zone</h2>
+              <button 
+                onClick={clearAllLocalData}
+                className="w-full p-5 rounded-3xl bg-red-500/10 border border-red-500/20 flex flex-col items-center active:scale-95 transition-all hover:bg-red-500/20 group"
+              >
+                <i className="fas fa-trash-alt text-red-500 text-xl mb-2 group-hover:scale-110 transition-transform"></i>
+                <p className="text-[11px] font-black uppercase tracking-wider text-red-500">Clear All Local Data</p>
+              </button>
             </section>
           </div>
         ) : activeTab === 'upload' ? (
