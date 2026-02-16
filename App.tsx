@@ -6,7 +6,7 @@ import jsQR from 'jsqr';
 const SCAN_HISTORY_KEY = 'smart_lens_history';
 const SYNC_URL_KEY = 'smart_lens_sync_url';
 const SYNC_TOKEN_KEY = 'smart_lens_sync_token';
-const LOCAL_LIMIT = 256;
+const LOCAL_LIMIT = 512;
 
 const App: React.FC = () => {
   const [scans, setScans] = useState<ScanResult[]>(() => {
