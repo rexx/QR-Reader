@@ -47,13 +47,19 @@ function doGet(e) {
   
   var result = rows.map(function(row) {
     var ts = row[1] instanceof Date ? row[1].getTime() : new Date(row[1]).getTime();
+    
+    // 強制將欄位轉為字串，避免數字型別造成前端比對 (Set/indexOf) 失效
+    var idVal = (row[0] !== null && row[0] !== undefined) ? String(row[0]) : "";
     var nameVal = (row[2] !== null && row[2] !== undefined) ? String(row[2]) : "";
+    var dataVal = (row[3] !== null && row[3] !== undefined) ? String(row[3]) : "";
+    var typeVal = (row[4] !== null && row[4] !== undefined) ? String(row[4]) : "unknown";
+
     return { 
-      id: row[0], 
+      id: idVal, 
       timestamp: isNaN(ts) ? Date.now() : ts, 
       name: nameVal, 
-      data: row[3], 
-      type: row[4] 
+      data: dataVal, 
+      type: typeVal 
     };
   });
   
@@ -81,27 +87,31 @@ function doPost(e) {
     return ContentService.createTextOutput(JSON.stringify({ "status": "success", "added": 0, "updated": 0 })).setMimeType(ContentService.MimeType.JSON);
   }
 
+  // 取得 ID 欄位時也強制轉為字串
   var idColumn = sheet.getRange(1, 1, sheet.getLastRow(), 1).getValues().map(function(r) { return String(r[0]); });
   var updatedCount = 0;
   var addedCount = 0;
 
   itemsToProcess.forEach(function(item) {
+    var itemId = String(item.id);
     var safeName = (item.name !== null && item.name !== undefined && item.name !== "") ? String(item.name) : "";
+    var safeData = (item.data !== null && item.data !== undefined) ? String(item.data) : "";
+    
     var rowData = [
-      String(item.id), 
+      itemId, 
       new Date(Number(item.timestamp)), 
       safeName, 
-      item.data, 
+      safeData, 
       item.type
     ];
 
-    var foundIndex = idColumn.indexOf(String(item.id));
+    var foundIndex = idColumn.indexOf(itemId);
     if (foundIndex > -1) {
       sheet.getRange(foundIndex + 1, 1, 1, 5).setValues([rowData]);
       updatedCount++;
     } else {
       sheet.appendRow(rowData);
-      idColumn.push(String(item.id));
+      idColumn.push(itemId);
       addedCount++;
     }
   });

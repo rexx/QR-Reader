@@ -47,8 +47,8 @@ const App: React.FC = () => {
     if (synced.length === 0) return currentScans;
     const sortedSynced = [...synced].sort((a, b) => a.timestamp - b.timestamp);
     const toRemoveCount = currentScans.length - LOCAL_LIMIT;
-    const removedIds = new Set(sortedSynced.slice(0, toRemoveCount).map(s => s.id));
-    return currentScans.filter(s => !removedIds.has(s.id));
+    const removedIds = new Set(sortedSynced.slice(0, toRemoveCount).map(s => String(s.id)));
+    return currentScans.filter(s => !removedIds.has(String(s.id)));
   }, []);
 
   useEffect(() => {
@@ -73,13 +73,12 @@ const App: React.FC = () => {
   const syncItem = async (item: ScanResult) => {
     if (!syncUrl) return false;
     if (!syncToken) {
-      setScans(prev => prev.map(s => s.id === item.id ? { ...s, syncStatus: 'error' } : s));
+      setScans(prev => prev.map(s => String(s.id) === String(item.id) ? { ...s, syncStatus: 'error' } : s));
       return false;
     }
 
-    setScans(prev => prev.map(s => s.id === item.id ? { ...s, syncStatus: 'syncing' } : s));
+    setScans(prev => prev.map(s => String(s.id) === String(item.id) ? { ...s, syncStatus: 'syncing' } : s));
     try {
-      // Use text/plain to avoid OPTIONS preflight while keeping ability to read response
       const response = await fetch(syncUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' },
@@ -88,14 +87,14 @@ const App: React.FC = () => {
       
       const resData = await response.json();
       if (resData.status === 'error') {
-        setScans(prev => prev.map(s => s.id === item.id ? { ...s, syncStatus: 'error' } : s));
+        setScans(prev => prev.map(s => String(s.id) === String(item.id) ? { ...s, syncStatus: 'error' } : s));
         return false;
       }
 
-      setScans(prev => prev.map(s => s.id === item.id ? { ...s, syncStatus: 'synced' } : s));
+      setScans(prev => prev.map(s => String(s.id) === String(item.id) ? { ...s, syncStatus: 'synced' } : s));
       return true;
     } catch (error) {
-      setScans(prev => prev.map(s => s.id === item.id ? { ...s, syncStatus: 'error' } : s));
+      setScans(prev => prev.map(s => String(s.id) === String(item.id) ? { ...s, syncStatus: 'error' } : s));
       return false;
     }
   };
@@ -116,7 +115,6 @@ const App: React.FC = () => {
     setSyncProgress({ current: 0, total: 1, label: `Pushing ${pending.length} records...` });
     
     try {
-      // Use text/plain to avoid OPTIONS preflight while keeping ability to read response
       const response = await fetch(syncUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' },
@@ -170,43 +168,35 @@ const App: React.FC = () => {
       if (Array.isArray(cloudData)) {
         setSyncProgress({ current: 0, total: 1, label: 'Merging records...' });
         
-        const cloudItems: ScanResult[] = cloudData.slice(0, 250).map((item: any) => ({ ...item, syncStatus: 'synced' }));
-        const cloudIds = new Set(cloudItems.map(item => item.id));
+        // 重要：轉換雲端 ID 為字串進行比對
+        const cloudItems: ScanResult[] = cloudData.slice(0, 500).map((item: any) => ({ ...item, id: String(item.id), syncStatus: 'synced' }));
+        const cloudIds = new Set(cloudItems.map(item => String(item.id)));
 
         let updatedCount = 0;
         let resetCount = 0;
 
         const auditedLocalScans = scans.map(localItem => {
-          if (localItem.syncStatus === 'synced' && !cloudIds.has(localItem.id)) {
+          const localId = String(localItem.id);
+          if (localItem.syncStatus === 'synced' && !cloudIds.has(localId)) {
             resetCount++;
             return { ...localItem, syncStatus: 'pending' } as ScanResult;
           }
-          const cloudVersion = cloudItems.find(c => c.id === localItem.id);
+          const cloudVersion = cloudItems.find(c => String(c.id) === localId);
           if (cloudVersion) {
             updatedCount++;
-            return cloudVersion;
+            return { ...cloudVersion, id: localId }; // 保持本地 ID 字串型別
           }
           return localItem;
         });
 
-        const localIds = new Set(auditedLocalScans.map(s => s.id));
-        const toRestoreFromCloud = cloudItems.filter(c => !localIds.has(c.id));
+        const localIds = new Set(auditedLocalScans.map(s => String(s.id)));
+        const toRestoreFromCloud = cloudItems.filter(c => !localIds.has(String(c.id)));
 
         const merged = [...toRestoreFromCloud, ...auditedLocalScans].sort((a, b) => b.timestamp - a.timestamp);
         setScans(merged);
         setCloudScans([]);
 
-        const summary = [
-          "📥 Pull Sync Report",
-          `--------------------`,
-          `🆕 Added (Restore): ${toRestoreFromCloud.length}`,
-          `🔄 Updated (Conflict): ${updatedCount}`,
-          `🛠️ Reset to Pending: ${resetCount}`,
-          `--------------------`,
-          `Pull complete.`
-        ].join('\n');
-        
-        alert(summary);
+        alert(`📥 Pull Sync Report\n--------------------\n🆕 Added: ${toRestoreFromCloud.length}\n🔄 Updated: ${updatedCount}\n🛠️ Reset: ${resetCount}\n--------------------`);
       }
     } catch (error: any) {
       alert(error.message === "Unauthorized" || error.message?.includes("Unexpected token") ? "❌ Invalid Sync Token!" : "Pull failed. Connection error.");
@@ -229,10 +219,10 @@ const App: React.FC = () => {
       }
 
       if (Array.isArray(data)) {
-        const localIds = new Set(scans.map(s => s.id));
+        const localIds = new Set(scans.map(s => String(s.id)));
         const newCloudItems = data
-          .filter((item: any) => !localIds.has(item.id))
-          .map((item: any) => ({ ...item, isCloudOnly: true, syncStatus: 'synced' }));
+          .filter((item: any) => !localIds.has(String(item.id)))
+          .map((item: any) => ({ ...item, id: String(item.id), isCloudOnly: true, syncStatus: 'synced' }));
         setCloudScans(newCloudItems);
       }
     } catch (error: any) {
@@ -266,11 +256,12 @@ const App: React.FC = () => {
         const importedData = JSON.parse(event.target?.result as string);
         if (!Array.isArray(importedData)) throw new Error("Invalid format");
         
-        const localIds = new Set(scans.map(s => s.id));
+        const localIds = new Set(scans.map(s => String(s.id)));
         const newItems = importedData.filter((item: ScanResult) => {
-          return item.id && item.data && !localIds.has(item.id);
+          return item.id && item.data && !localIds.has(String(item.id));
         }).map(item => ({
           ...item,
+          id: String(item.id),
           syncStatus: item.syncStatus === 'synced' ? 'synced' : 'pending'
         }));
 
@@ -312,20 +303,20 @@ const App: React.FC = () => {
 
   const handleUpdateName = (id: string, newName: string) => {
     setScans(prev => {
-      const updated = prev.map(s => s.id === id ? { ...s, name: newName, syncStatus: 'pending' } as ScanResult : s);
-      const target = updated.find(s => s.id === id);
+      const updated = prev.map(s => String(s.id) === String(id) ? { ...s, name: newName, syncStatus: 'pending' } as ScanResult : s);
+      const target = updated.find(s => String(s.id) === String(id));
       if (target && syncUrl) syncItem(target);
       return updated;
     });
-    if (selectedResult?.id === id) setSelectedResult(prev => prev ? { ...prev, name: newName } : null);
+    if (String(selectedResult?.id) === String(id)) setSelectedResult(prev => prev ? { ...prev, name: newName } : null);
     setIsEditingName(false);
   };
 
   const handleDeleteScan = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (window.confirm("Delete local copy?")) {
-      setScans(prev => prev.filter(s => s.id !== id));
-      if (selectedResult?.id === id) setSelectedResult(null);
+      setScans(prev => prev.filter(s => String(s.id) !== String(id)));
+      if (String(selectedResult?.id) === String(id)) setSelectedResult(null);
     }
   };
 
@@ -333,9 +324,15 @@ const App: React.FC = () => {
     const combined = [...scans, ...cloudScans].sort((a, b) => b.timestamp - a.timestamp);
     if (!searchQuery.trim()) return combined;
     const query = searchQuery.toLowerCase();
+    
     return combined.filter(scan => {
-      const nameMatch = (scan.name !== undefined && scan.name !== null) ? String(scan.name).toLowerCase().includes(query) : false;
-      const dataMatch = scan.data.toLowerCase().includes(query);
+      // 魯棒性處理：確保所有比對欄位都是字串，避免數字型別導致搜尋異常
+      const name = (scan.name !== undefined && scan.name !== null) ? String(scan.name) : "";
+      const data = (scan.data !== undefined && scan.data !== null) ? String(scan.data) : "";
+      
+      const nameMatch = name.toLowerCase().includes(query);
+      const dataMatch = data.toLowerCase().includes(query);
+      
       return nameMatch || dataMatch;
     });
   }, [scans, cloudScans, searchQuery]);
@@ -461,8 +458,8 @@ const App: React.FC = () => {
                             autoFocus 
                             value={editNameValue} 
                             onChange={e => setEditNameValue(e.target.value)} 
-                            onBlur={() => handleUpdateName(selectedResult.id, editNameValue)} 
-                            onKeyDown={e => e.key === 'Enter' && handleUpdateName(selectedResult.id, editNameValue)}
+                            onBlur={() => handleUpdateName(String(selectedResult.id), editNameValue)} 
+                            onKeyDown={e => e.key === 'Enter' && handleUpdateName(String(selectedResult.id), editNameValue)}
                             className="bg-slate-950 border border-sky-500 rounded px-2 py-1 text-sm w-full outline-none text-white" 
                           />
                         ) : (
@@ -511,14 +508,14 @@ const App: React.FC = () => {
                     </div>
                   ) : (
                     allVisibleScans.map(scan => (
-                      <div key={scan.id} onClick={() => setSelectedResult(scan)} className={`p-4 rounded-2xl border transition-all active:scale-[0.98] cursor-pointer ${scan.isCloudOnly ? 'bg-slate-950 border-dashed border-slate-800 opacity-70' : 'bg-slate-900 border-slate-800 hover:border-slate-700 hover:shadow-lg'}`}>
+                      <div key={String(scan.id)} onClick={() => setSelectedResult(scan)} className={`p-4 rounded-2xl border transition-all active:scale-[0.98] cursor-pointer ${scan.isCloudOnly ? 'bg-slate-950 border-dashed border-slate-800 opacity-70' : 'bg-slate-900 border-slate-800 hover:border-slate-700 hover:shadow-lg'}`}>
                         <div className="flex items-center gap-3">
                           <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${scan.type === 'url' ? 'bg-indigo-500/10 text-indigo-400' : 'bg-amber-500/10 text-amber-400'}`}>
                             <i className={scan.isCloudOnly ? 'fas fa-cloud' : (scan.type === 'url' ? 'fas fa-link' : 'fas fa-font')}></i>
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-bold truncate pr-2 text-slate-100">
-                              {(scan.name !== undefined && scan.name !== null && scan.name !== "") ? String(scan.name) : scan.data}
+                              {(scan.name !== undefined && scan.name !== null && scan.name !== "") ? String(scan.name) : String(scan.data)}
                             </p>
                             <p className="text-[10px] text-slate-500 mt-0.5">{formatTimestamp(scan.timestamp)}</p>
                           </div>
@@ -526,7 +523,7 @@ const App: React.FC = () => {
                             {scan.syncStatus === 'synced' && <i className="fas fa-check-circle text-emerald-500 text-[10px]" title="Synced"></i>}
                             {scan.syncStatus === 'syncing' && <i className="fas fa-circle-notch animate-spin text-sky-400 text-[10px]"></i>}
                             {scan.syncStatus === 'error' && <i className="fas fa-exclamation-circle text-red-500 text-[10px]" title="Sync Error / Token Missing"></i>}
-                            {!scan.isCloudOnly && <button onClick={e => handleDeleteScan(scan.id, e)} className="w-8 h-8 rounded-full flex items-center justify-center text-slate-700 hover:text-red-500 hover:bg-red-500/10 transition-all"><i className="fas fa-trash text-xs"></i></button>}
+                            {!scan.isCloudOnly && <button onClick={e => handleDeleteScan(String(scan.id), e)} className="w-8 h-8 rounded-full flex items-center justify-center text-slate-700 hover:text-red-500 hover:bg-red-500/10 transition-all"><i className="fas fa-trash text-xs"></i></button>}
                           </div>
                         </div>
                       </div>
