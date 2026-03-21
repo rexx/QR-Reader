@@ -1,5 +1,5 @@
 /**
- * Smart Lens: Google Sheets Sync Backend (Secure Version - Batch Optimized)
+ * QR Reader: Google Sheets Sync Backend (Secure Version - Batch Optimized)
  */
 
 // ⚠️ 請修改此密鑰，並同步在 App 設定中填入相同的值

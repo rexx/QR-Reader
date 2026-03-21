@@ -1,6 +1,6 @@
 
 {
-  "name": "smart-lens-qr-reader",
+  "name": "qr-reader",
   "private": true,
   "version": "1.0.0",
   "type": "module",

@@ -1,6 +1,6 @@
 {
-  "name": "Smart Lens: QR Reader",
-  "short_name": "Smart Lens",
+  "name": "QR Reader",
+  "short_name": "QR Reader",
   "description": "A professional-grade QR code scanner to quickly read, copy, and open scanned data.",
   "start_url": "./",
   "display": "standalone",

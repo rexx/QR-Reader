@@ -1,7 +1,7 @@
-# Function Specification: Smart Lens Sync to Google Sheets
+# Function Specification: QR Reader Sync to Google Sheets
 
 ## 1. Overview
-This specification defines the synchronization logic between the Smart Lens web application and Google Sheets via Google Apps Script (GAS). The system utilizes a "local-first with cloud master" strategy, ensuring offline availability while maintaining data persistence across sessions and devices.
+This specification defines the synchronization logic between the QR Reader web application and Google Sheets via Google Apps Script (GAS). The system utilizes a "local-first with cloud master" strategy, ensuring offline availability while maintaining data persistence across sessions and devices.
 
 ## 2. Technical Architecture
 

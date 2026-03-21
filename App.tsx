@@ -4,9 +4,9 @@ import { ScanResult } from './types';
 import QRScanner from './components/QRScanner';
 import jsQR from 'jsqr';
 
-const SCAN_HISTORY_KEY = 'smart_lens_history';
-const SYNC_URL_KEY = 'smart_lens_sync_url';
-const SYNC_TOKEN_KEY = 'smart_lens_sync_token';
+const SCAN_HISTORY_KEY = 'qr_reader_history';
+const SYNC_URL_KEY = 'qr_reader_sync_url';
+const SYNC_TOKEN_KEY = 'qr_reader_sync_token';
 const LOCAL_LIMIT = 512;
 
 const App: React.FC = () => {
@@ -239,7 +239,7 @@ const App: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `smart_lens_backup_${new Date().toISOString().split('T')[0]}.json`;
+    link.download = `qr_reader_backup_${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
