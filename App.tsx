@@ -350,7 +350,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="h-screen w-screen max-w-md mx-auto flex flex-col bg-slate-950 text-slate-100 shadow-2xl relative border-x border-slate-800 overflow-hidden font-sans">
+    <div className="h-full w-full max-w-md mx-auto flex flex-col bg-slate-950 text-slate-100 shadow-2xl relative border-x border-slate-800 overflow-hidden font-sans">
       {/* Progress Overlay */}
       {isSyncing && syncProgress && (
         <div className="absolute inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
@@ -366,13 +366,13 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <header className="p-6 pb-4 border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-md z-30 shrink-0">
+      <header className="px-6 pt-0 pb-4 border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-md z-30 shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center shadow-lg shadow-sky-500/20"><i className="fas fa-qrcode text-xl text-white"></i></div>
-            <div>
+            <div className="flex items-center gap-2">
               <h1 className="text-xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">QR READER</h1>
-              <div className="flex items-center gap-1.5">{isCameraActive && <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>}</div>
+              {isCameraActive && <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>}
             </div>
           </div>
           <button onClick={() => handleTabChange('settings')} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-95 ${activeTab === 'settings' ? 'bg-sky-500 text-white' : 'bg-slate-900 text-slate-500 hover:text-white'}`}><i className="fas fa-cog"></i></button>

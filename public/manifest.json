@@ -4,8 +4,8 @@
   "description": "A professional-grade QR code scanner to quickly read, copy, and open scanned data.",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#0f172a",
+  "background_color": "#020617",
+  "theme_color": "#020617",
   "icons": [
     {
       "src": "/public/QR-Reader/android-chrome-192x192.png",
