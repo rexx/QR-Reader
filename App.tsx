@@ -434,10 +434,10 @@ const App: React.FC = () => {
           </div>
         ) : activeTab === 'upload' ? (
           <div className="flex-1 flex flex-col justify-center px-6">
-            <div onClick={() => fileInputRef.current?.click()} className="group relative cursor-pointer aspect-square rounded-[3rem] bg-slate-900 border-4 border-slate-800 hover:border-sky-500/50 shadow-2xl overflow-hidden flex flex-col items-center justify-center transition-all active:scale-95">
-              <div className="w-20 h-20 rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center mb-6 shadow-xl transition-transform group-hover:scale-110"><i className="fas fa-file-arrow-up text-3xl text-sky-400"></i></div>
+            <div onClick={() => fileInputRef.current?.click()} className="relative cursor-pointer aspect-square rounded-[3rem] bg-slate-900 border-4 border-slate-800 shadow-2xl overflow-hidden flex flex-col items-center justify-center">
+              <div className="w-20 h-20 rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center mb-6 shadow-xl"><i className="fas fa-file-arrow-up text-3xl text-sky-400"></i></div>
               <h3 className="text-lg font-bold text-slate-100 mb-2">Upload Image</h3>
-              <div className="mt-8 px-6 py-2.5 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 text-[10px] font-black uppercase tracking-[0.2em] group-hover:bg-sky-500/20 transition-all">Select File</div>
+              <div className="mt-8 px-6 py-2.5 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 text-[10px] font-black uppercase tracking-[0.2em]">Select File</div>
             </div>
             <input type="file" ref={fileInputRef} onChange={(e) => {
               const file = e.target.files?.[0]; if (!file) return;
@@ -560,7 +560,7 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <nav className="shrink-0 bg-slate-950/90 border-t border-slate-800/50 px-4 pt-4 pb-10 flex justify-around backdrop-blur-md">
+      <nav className="shrink-0 bg-slate-950/90 border-t border-slate-800/50 px-4 pt-4 pb-4 flex justify-around backdrop-blur-md">
         <button onClick={() => handleTabChange('upload')} className={`flex flex-col items-center gap-1 flex-1 transition-all active:scale-95 ${activeTab === 'upload' ? 'text-sky-400' : 'text-slate-600 hover:text-slate-400'}`}><i className="fas fa-file-upload text-lg"></i><span className="text-[8px] font-bold uppercase">Upload</span></button>
         <button onClick={() => handleTabChange('scanner')} className={`flex flex-col items-center gap-1 flex-1 transition-all active:scale-95 ${activeTab === 'scanner' ? 'text-sky-400' : 'text-slate-600 hover:text-slate-400'}`}><i className="fas fa-camera text-lg"></i><span className="text-[8px] font-bold uppercase">Camera</span></button>
         <button onClick={() => handleTabChange('history')} className={`flex flex-col items-center gap-1 flex-1 transition-all active:scale-95 ${activeTab === 'history' ? 'text-sky-400' : 'text-slate-600'}`}><i className="fas fa-history text-lg"></i><span className="text-[8px] font-bold uppercase">History</span></button>
