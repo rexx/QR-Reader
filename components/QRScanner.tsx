@@ -3,6 +3,26 @@ import React, { useRef, useEffect, useState } from 'react';
 import jsQR from 'jsqr';
 import { Zap, VideoOff, LoaderCircle, Lock, TriangleAlert, Minus, Plus } from 'lucide-react';
 
+declare global {
+  interface Window {
+    __cameraWarmup?: Promise<MediaStream | null>;
+  }
+}
+
+/**
+ * Takes ownership of the stream opened by the inline warm-up script in
+ * index.html, so camera spin-up overlaps with bundle download instead of
+ * queueing behind it. Returns null when there is nothing usable to claim.
+ */
+const claimWarmupStream = async (): Promise<MediaStream | null> => {
+  const pending = window.__cameraWarmup;
+  if (!pending) return null;
+  window.__cameraWarmup = undefined;
+  const stream = await pending;
+  if (!stream) return null;
+  return stream.getVideoTracks().some(t => t.readyState === 'live') ? stream : null;
+};
+
 interface QRScannerProps {
   onScan: (data: string) => void;
   isActive: boolean;
@@ -61,7 +81,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
         }
       };
       
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      const stream = (await claimWarmupStream()) ?? await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream;
 
       if (videoRef.current) {
@@ -211,6 +231,8 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
       startCamera();
       requestRef.current = requestAnimationFrame(scan);
     } else {
+      // Release an unclaimed warm-up stream so the camera light does not stay on.
+      claimWarmupStream().then(s => s?.getTracks().forEach(t => t.stop()));
       stopCamera();
     }
     return () => stopCamera();

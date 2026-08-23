@@ -27,6 +27,17 @@
             border: 4px solid #1e293b; background-color: #0f172a;
         }
     </style>
+
+    <!-- Camera warm-up: fires while the JS bundle is still downloading so
+         getUserMedia permission and sensor spin-up overlap with app boot.
+         QRScanner claims this stream instead of opening its own. -->
+    <script>
+        window.__cameraWarmup = navigator.mediaDevices
+            ? navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+              }).catch(function () { return null; })
+            : Promise.resolve(null);
+    </script>
 </head>
 <body>
     <div id="boot-shell"><div></div></div>
