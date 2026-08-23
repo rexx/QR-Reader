@@ -130,11 +130,17 @@ iOS Safari 對 Service Worker 與 `getUserMedia` 都要求 secure context。`loc
 
 要在 iPhone 上完整測試，需要真憑證：用 tunnel（`cloudflared tunnel --url http://localhost:4173`）或直接部署上去測。
 
-### 5.2 舊安裝可能需要刪掉重裝
+### 5.2 早於 Service Worker 的舊安裝可能需要刪掉重裝
 
-已在 Cozy Pocket 觀察到：新重裝的 iOS 主畫面 app 可以離線冷啟動，舊安裝版本可能在完全滑掉後跳出 Safari 錯誤頁。舊的安裝 metadata / start URL / SW 狀態可能與新版不一致。
+這條慣例來自 Cozy Pocket 的文件：新重裝的 iOS 主畫面 app 可以離線冷啟動，舊安裝可能在完全滑掉後跳出 Safari 錯誤頁。
 
-處理方式：刪除舊的主畫面 app → Safari 重開正式網址 → 重新加入主畫面 → 上線開一次後再測離線。
+**「舊」必須指明相對於什麼事件，否則這條無法套用。** 這裡的基準點是 **Service Worker 上線**（本專案是 `a93696e`），不是「早於當前 HEAD」。`public/manifest.json` 在更早的 `ec43f51` 就存在，所以本專案在沒有 SW 的那段期間**已經可以被加到主畫面**——那種安裝才是這條慣例講的對象。SW 上線之後才裝的，即使裝了好幾版也不算。
+
+**這條目前零驗證。** 沒有人在真機上確認過 pre-SW 安裝是否真的會失敗。要驗只有一次機會：在刪除那個安裝之前先試離線冷啟動。不成立的價值更大——那表示這條該降級。
+
+保守處理方式（在驗證之前照做）：刪除舊的主畫面 app → Safari 重開正式網址 → 重新加入主畫面 → 上線開一次後再測離線。
+
+**已知不需要重裝的情況**：SW 上線之後的部署不會打斷既有安裝的離線能力，快取的 shell 由 SW 持續供應（mini-sudoku 專案真機觀察，跨數次部署）。所以每次部署後不需要提醒使用者重裝。
 
 ### 5.3 Icon 與 iOS Liquid Glass
 
