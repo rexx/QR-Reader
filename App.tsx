@@ -3,7 +3,8 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { ScanResult } from './types';
 import QRScanner from './components/QRScanner';
 import jsQR from 'jsqr';
-import { QrCode, Settings, Cloud, CloudDownload, CloudUpload, Database, FileInput, FileOutput, TriangleAlert, Trash2, FileUp, ChevronLeft, Pencil, Search, ChartColumn, History, Link, Type, CircleCheck, LoaderCircle, CircleAlert, Upload, Camera } from 'lucide-react';
+import { isOffline, fetchWithTimeout } from './services/networkService';
+import { QrCode, Settings, CloudOff, Cloud, CloudDownload, CloudUpload, Database, FileInput, FileOutput, TriangleAlert, Trash2, FileUp, ChevronLeft, Pencil, Search, ChartColumn, History, Link, Type, CircleCheck, LoaderCircle, CircleAlert, Upload, Camera } from 'lucide-react';
 
 const SCAN_HISTORY_KEY = 'qr_reader_history';
 const SYNC_URL_KEY = 'qr_reader_sync_url';
@@ -32,6 +33,17 @@ const App: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState<{current: number, total: number, label: string} | null>(null);
   const [cloudScans, setCloudScans] = useState<ScanResult[]>([]);
+  const [offline, setOffline] = useState(isOffline());
+
+  useEffect(() => {
+    const update = () => setOffline(isOffline());
+    window.addEventListener('online', update);
+    window.addEventListener('offline', update);
+    return () => {
+      window.removeEventListener('online', update);
+      window.removeEventListener('offline', update);
+    };
+  }, []);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const jsonImportRef = useRef<HTMLInputElement>(null);
@@ -74,6 +86,8 @@ const App: React.FC = () => {
 
   const syncItem = async (item: ScanResult) => {
     if (!syncUrl) return false;
+    // Offline is not a sync failure: leave the item pending for a later push.
+    if (isOffline()) return false;
     if (!syncToken) {
       setScans(prev => prev.map(s => String(s.id) === String(item.id) ? { ...s, syncStatus: 'error' } : s));
       return false;
@@ -81,7 +95,7 @@ const App: React.FC = () => {
 
     setScans(prev => prev.map(s => String(s.id) === String(item.id) ? { ...s, syncStatus: 'syncing' } : s));
     try {
-      const response = await fetch(syncUrl, {
+      const response = await fetchWithTimeout(syncUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({ token: syncToken, items: [item] }),
@@ -102,6 +116,7 @@ const App: React.FC = () => {
   };
 
   const performPushSync = async () => {
+    if (isOffline()) return alert("You are offline. Scans stay on this device and can be pushed once you are back online.");
     if (!syncUrl) return alert("Please set a Webhook URL first.");
     if (!syncToken) return alert("Please set a Sync Token in settings first.");
     if (isSyncing) return;
@@ -117,7 +132,7 @@ const App: React.FC = () => {
     setSyncProgress({ current: 0, total: 1, label: `Pushing ${pending.length} records...` });
     
     try {
-      const response = await fetch(syncUrl, {
+      const response = await fetchWithTimeout(syncUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({ 
@@ -150,6 +165,7 @@ const App: React.FC = () => {
   };
 
   const performPullSync = async () => {
+    if (isOffline()) return alert("You are offline. Pull sync needs a network connection.");
     if (!syncUrl) return alert("Please set a Webhook URL first.");
     if (isSyncing) return;
 
@@ -160,7 +176,7 @@ const App: React.FC = () => {
 
     try {
       const urlWithToken = `${syncUrl}${syncUrl.includes('?') ? '&' : '?'}token=${encodeURIComponent(syncToken)}`;
-      const response = await fetch(urlWithToken);
+      const response = await fetchWithTimeout(urlWithToken);
       const cloudData = await response.json();
 
       if (cloudData.status === 'error' && cloudData.message === 'Unauthorized') {
@@ -208,11 +224,12 @@ const App: React.FC = () => {
   };
 
   const fetchCloudData = async () => {
+    if (isOffline()) return alert("You are offline. Cloud records are unavailable.");
     if (!syncUrl) return alert("Please set a Webhook URL first.");
     setIsSyncing(true);
     try {
       const urlWithToken = `${syncUrl}${syncUrl.includes('?') ? '&' : '?'}token=${encodeURIComponent(syncToken)}`;
-      const response = await fetch(urlWithToken);
+      const response = await fetchWithTimeout(urlWithToken);
       const data = await response.json();
       
       if (data.status === 'error' && data.message === 'Unauthorized') {
@@ -374,6 +391,12 @@ const App: React.FC = () => {
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">QR READER</h1>
               {isCameraActive && <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>}
+              {offline && (
+                <span title="Offline: scanning works, history sync is paused" className="flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-400">
+                  <CloudOff size={11} />
+                  <span className="text-[8px] font-black uppercase tracking-widest">Offline</span>
+                </span>
+              )}
             </div>
           </div>
           <button onClick={() => handleTabChange('settings')} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-95 ${activeTab === 'settings' ? 'bg-sky-500 text-white' : 'bg-slate-900 text-slate-500 hover:text-white'}`}><Settings size={18} /></button>
