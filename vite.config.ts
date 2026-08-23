@@ -9,15 +9,9 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: [
-        'favicon.ico',
-        'favicon-16x16.png',
-        'favicon-32x32.png',
-        'apple-touch-icon.png',
-        'android-chrome-192x192.png',
-        'android-chrome-512x512.png',
-        'icon.svg',
-      ],
+      // No includeAssets: everything in public/ is copied into dist/ and is
+      // already matched by globPatterns. Listing it again double-counts each
+      // icon in the precache manifest.
       manifest: false,
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
