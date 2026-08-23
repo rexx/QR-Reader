@@ -1,6 +1,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import jsQR from 'jsqr';
+import { Zap, VideoOff, LoaderCircle, Lock, TriangleAlert, Minus, Plus } from 'lucide-react';
 
 interface QRScannerProps {
   onScan: (data: string) => void;
@@ -234,7 +235,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
                 onClick={toggleTorch}
                 className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${isTorchOn ? 'bg-yellow-400 text-slate-900 shadow-[0_0_20px_rgba(250,204,21,0.5)]' : 'bg-black/50 text-white backdrop-blur-md border border-white/10 hover:bg-black/70'}`}
               >
-                <i className="fas fa-bolt"></i>
+                <Zap size={18} />
               </button>
             )}
           </div>
@@ -243,7 +244,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
         {!isActive && !isLoading && !error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/40 backdrop-blur-md">
             <div className="w-20 h-20 rounded-full bg-slate-800/80 flex items-center justify-center mb-4 border border-slate-700">
-              <i className="fas fa-video-slash text-slate-500 text-2xl"></i>
+              <VideoOff size={28} className="text-slate-500" />
             </div>
             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Camera Offline</p>
           </div>
@@ -251,7 +252,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
 
         {isLoading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-            <i className="fas fa-circle-notch animate-spin text-sky-400 text-3xl mb-4"></i>
+            <LoaderCircle size={30} className="animate-spin text-sky-400 mb-4" />
             <p className="text-[10px] font-bold text-sky-400/70 uppercase tracking-widest">Starting Camera...</p>
           </div>
         )}
@@ -259,7 +260,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
         {error && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-8 text-center bg-slate-900/40 backdrop-blur-md">
             <div className="w-20 h-20 rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center mb-6 shadow-xl">
-               <i className={`fas ${error.type === 'denied' ? 'fa-lock' : 'fa-exclamation-triangle'} ${error.type === 'denied' ? 'text-amber-500' : 'text-red-500'} text-3xl`}></i>
+               {error.type === 'denied' ? <Lock size={30} className="text-amber-500" /> : <TriangleAlert size={30} className="text-red-500" />}
             </div>
             <h4 className="text-lg font-bold text-slate-100 mb-3 max-w-[240px]">{error.title}</h4>
             <p className="text-sm text-slate-400 leading-relaxed max-w-[250px] mb-8">{error.message}</p>
@@ -300,7 +301,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
               }}
               className="text-slate-500 hover:text-white transition-colors disabled:cursor-not-allowed"
             >
-              <i className="fas fa-minus text-[10px]"></i>
+              <Minus size={12} />
             </button>
             <input 
               type="range" 
@@ -321,7 +322,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
               }}
               className="text-slate-500 hover:text-white transition-colors disabled:cursor-not-allowed"
             >
-              <i className="fas fa-plus text-[10px]"></i>
+              <Plus size={12} />
             </button>
           </div>
         </div>

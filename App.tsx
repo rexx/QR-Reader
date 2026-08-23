@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { ScanResult } from './types';
 import QRScanner from './components/QRScanner';
 import jsQR from 'jsqr';
+import { QrCode, Settings, Cloud, CloudDownload, CloudUpload, Database, FileInput, FileOutput, TriangleAlert, Trash2, FileUp, ChevronLeft, Pencil, Search, ChartColumn, History, Link, Type, CircleCheck, LoaderCircle, CircleAlert, Upload, Camera } from 'lucide-react';
 
 const SCAN_HISTORY_KEY = 'qr_reader_history';
 const SYNC_URL_KEY = 'qr_reader_sync_url';
@@ -369,13 +370,13 @@ const App: React.FC = () => {
       <header className="px-6 pt-0 pb-4 border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-md z-30 shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center shadow-lg shadow-sky-500/20"><i className="fas fa-qrcode text-xl text-white"></i></div>
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center shadow-lg shadow-sky-500/20"><QrCode size={20} className="text-white" /></div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">QR READER</h1>
               {isCameraActive && <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>}
             </div>
           </div>
-          <button onClick={() => handleTabChange('settings')} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-95 ${activeTab === 'settings' ? 'bg-sky-500 text-white' : 'bg-slate-900 text-slate-500 hover:text-white'}`}><i className="fas fa-cog"></i></button>
+          <button onClick={() => handleTabChange('settings')} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-95 ${activeTab === 'settings' ? 'bg-sky-500 text-white' : 'bg-slate-900 text-slate-500 hover:text-white'}`}><Settings size={18} /></button>
         </div>
       </header>
 
@@ -383,7 +384,7 @@ const App: React.FC = () => {
         {activeTab === 'settings' ? (
           <div className="flex-1 p-6 scrollable-y pb-32">
             <section className="mb-10">
-              <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-sky-400"><i className="fas fa-cloud"></i> Cloud Sync</h2>
+              <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-sky-400"><Cloud size={18} /> Cloud Sync</h2>
               <div className="space-y-6">
                 <div className="p-5 rounded-3xl bg-slate-900 border border-slate-800 shadow-inner">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-3">Webhook URL</label>
@@ -395,11 +396,11 @@ const App: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <button onClick={performPullSync} disabled={isSyncing || !syncUrl} className="w-full p-5 rounded-3xl bg-sky-500/10 border border-sky-500/20 disabled:opacity-30 flex flex-col items-center transition-all active:scale-95 hover:bg-sky-500/20 group">
-                    <i className="fas fa-cloud-download-alt text-sky-400 text-xl mb-2 group-hover:scale-110 transition-transform"></i>
+                    <CloudDownload size={20} className="text-sky-400 mb-2 group-hover:scale-110 transition-transform" />
                     <p className="text-[11px] font-black uppercase tracking-wider text-sky-400">PULL</p>
                   </button>
                   <button onClick={performPushSync} disabled={isSyncing || !syncUrl} className="w-full p-5 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 disabled:opacity-30 flex flex-col items-center transition-all active:scale-95 hover:bg-emerald-500/20 group">
-                    <i className="fas fa-cloud-upload-alt text-emerald-400 text-xl mb-2 group-hover:scale-110 transition-transform"></i>
+                    <CloudUpload size={20} className="text-emerald-400 mb-2 group-hover:scale-110 transition-transform" />
                     <p className="text-[11px] font-black uppercase tracking-wider text-emerald-400">PUSH</p>
                   </button>
                 </div>
@@ -407,14 +408,14 @@ const App: React.FC = () => {
             </section>
 
             <section className="pt-4 border-t border-slate-800/50 mb-10">
-              <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-amber-400"><i className="fas fa-database"></i> Data Management</h2>
+              <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-amber-400"><Database size={18} /> Data Management</h2>
               <div className="grid grid-cols-2 gap-4">
                 <button onClick={() => jsonImportRef.current?.click()} className="w-full p-5 rounded-3xl bg-sky-500/10 border border-sky-500/20 flex flex-col items-center active:scale-95 transition-all hover:bg-sky-500/20 group">
-                  <i className="fas fa-file-import text-sky-400 text-xl mb-2 group-hover:scale-110 transition-transform"></i>
+                  <FileInput size={20} className="text-sky-400 mb-2 group-hover:scale-110 transition-transform" />
                   <p className="text-[11px] font-black uppercase tracking-wider text-sky-400">IMPORT</p>
                 </button>
                 <button onClick={exportToJSON} className="w-full p-5 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 flex flex-col items-center active:scale-95 transition-all hover:bg-emerald-500/20 group">
-                  <i className="fas fa-file-export text-emerald-400 text-xl mb-2 group-hover:scale-110 transition-transform"></i>
+                  <FileOutput size={20} className="text-emerald-400 mb-2 group-hover:scale-110 transition-transform" />
                   <p className="text-[11px] font-black uppercase tracking-wider text-emerald-400">EXPORT</p>
                 </button>
               </div>
@@ -422,12 +423,12 @@ const App: React.FC = () => {
             </section>
 
             <section className="pt-8 border-t border-red-500/20 mt-8">
-              <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-red-500"><i className="fas fa-exclamation-triangle"></i> Danger Zone</h2>
+              <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-red-500"><TriangleAlert size={18} /> Danger Zone</h2>
               <button 
                 onClick={clearAllLocalData}
                 className="w-full p-5 rounded-3xl bg-red-500/10 border border-red-500/20 flex flex-col items-center active:scale-95 transition-all hover:bg-red-500/20 group"
               >
-                <i className="fas fa-trash-alt text-red-500 text-xl mb-2 group-hover:scale-110 transition-transform"></i>
+                <Trash2 size={20} className="text-red-500 mb-2 group-hover:scale-110 transition-transform" />
                 <p className="text-[11px] font-black uppercase tracking-wider text-red-500">Clear All Local Data</p>
               </button>
             </section>
@@ -435,7 +436,7 @@ const App: React.FC = () => {
         ) : activeTab === 'upload' ? (
           <div className="flex-1 flex flex-col justify-center px-6">
             <div onClick={() => fileInputRef.current?.click()} className="relative cursor-pointer aspect-square rounded-[3rem] bg-slate-900 border-4 border-slate-800 shadow-2xl overflow-hidden flex flex-col items-center justify-center">
-              <div className="w-20 h-20 rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center mb-6 shadow-xl"><i className="fas fa-file-arrow-up text-3xl text-sky-400"></i></div>
+              <div className="w-20 h-20 rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center mb-6 shadow-xl"><FileUp size={30} className="text-sky-400" /></div>
               <h3 className="text-lg font-bold text-slate-100 mb-2">Upload Image</h3>
               <div className="mt-8 px-6 py-2.5 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 text-[10px] font-black uppercase tracking-[0.2em]">Select File</div>
             </div>
@@ -463,7 +464,7 @@ const App: React.FC = () => {
           <div className="flex-1 flex flex-col overflow-hidden">
             {selectedResult ? (
               <div className="flex-1 flex flex-col overflow-hidden px-6 pt-6">
-                <button onClick={() => setSelectedResult(null)} className="flex items-center gap-2 text-slate-500 mb-6 text-[10px] font-bold uppercase transition-all hover:text-white"><i className="fas fa-chevron-left"></i> Back</button>
+                <button onClick={() => setSelectedResult(null)} className="flex items-center gap-2 text-slate-500 mb-6 text-[10px] font-bold uppercase transition-all hover:text-white"><ChevronLeft size={14} /> Back</button>
                 <div className="flex-1 scrollable-y pb-32">
                   <div className="p-6 rounded-[2.3rem] bg-slate-900 border border-slate-800 shadow-xl">
                     <div className="flex justify-between items-start mb-4">
@@ -485,7 +486,7 @@ const App: React.FC = () => {
                             <h2 className="text-base font-bold text-slate-100 group-hover:text-sky-400 transition-colors">
                               {(selectedResult.name !== undefined && selectedResult.name !== null && selectedResult.name !== "") ? String(selectedResult.name) : 'Untitled Scan'}
                             </h2>
-                            {!selectedResult.isCloudOnly && <i className="fas fa-pencil-alt text-[10px] text-slate-600 group-hover:text-sky-400"></i>}
+                            {!selectedResult.isCloudOnly && <Pencil size={12} className="text-slate-600 group-hover:text-sky-400" />}
                           </div>
                         )}
                       </div>
@@ -505,10 +506,10 @@ const App: React.FC = () => {
               <div className="flex-1 flex flex-col overflow-hidden pt-6">
                 <div className="px-4 mb-4 flex gap-2">
                   <div className="relative flex-1">
-                    <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 text-xs"></i>
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600" />
                     <input type="text" placeholder="Search history..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 pl-9 pr-4 text-sm outline-none focus:border-sky-500/50 transition-all text-white" />
                   </div>
-                  <button onClick={() => setIsStatsExpanded(!isStatsExpanded)} className={`w-10 h-10 rounded-xl border transition-all active:scale-95 ${isStatsExpanded ? 'bg-sky-500 border-sky-400 text-white' : 'bg-slate-900 border-slate-800 text-slate-500'}`}><i className="fas fa-chart-bar text-xs"></i></button>
+                  <button onClick={() => setIsStatsExpanded(!isStatsExpanded)} className={`w-10 h-10 rounded-xl border transition-all active:scale-95 ${isStatsExpanded ? 'bg-sky-500 border-sky-400 text-white' : 'bg-slate-900 border-slate-800 text-slate-500'}`}><ChartColumn size={14} /></button>
                 </div>
                 {isStatsExpanded && (
                   <div className="px-4 mb-4 grid grid-cols-4 gap-2 bg-slate-900/50 p-3 rounded-2xl border border-slate-800 mx-4 animate-in slide-in-from-top-2">
@@ -521,7 +522,7 @@ const App: React.FC = () => {
                 <div className="flex-1 scrollable-y px-4 pb-32 space-y-3">
                   {allVisibleScans.length === 0 ? (
                     <div className="py-20 text-center opacity-30 flex flex-col items-center">
-                      <i className="fas fa-history text-4xl mb-4"></i>
+                      <History size={36} className="mb-4" />
                       <p className="text-xs font-bold uppercase tracking-widest">No records found</p>
                     </div>
                   ) : (
@@ -529,7 +530,7 @@ const App: React.FC = () => {
                       <div key={String(scan.id)} onClick={() => setSelectedResult(scan)} className={`p-4 rounded-2xl border transition-all active:scale-[0.98] cursor-pointer ${scan.isCloudOnly ? 'bg-slate-950 border-dashed border-slate-800 opacity-70' : 'bg-slate-900 border-slate-800 hover:border-slate-700 hover:shadow-lg'}`}>
                         <div className="flex items-center gap-3">
                           <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${scan.type === 'url' ? 'bg-indigo-500/10 text-indigo-400' : 'bg-amber-500/10 text-amber-400'}`}>
-                            <i className={scan.isCloudOnly ? 'fas fa-cloud' : (scan.type === 'url' ? 'fas fa-link' : 'fas fa-font')}></i>
+                            {scan.isCloudOnly ? <Cloud size={16} /> : (scan.type === 'url' ? <Link size={16} /> : <Type size={16} />)}
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-bold truncate pr-2 text-slate-100">
@@ -538,10 +539,10 @@ const App: React.FC = () => {
                             <p className="text-[10px] text-slate-500 mt-0.5">{formatTimestamp(scan.timestamp)}</p>
                           </div>
                           <div className="flex items-center gap-2">
-                            {scan.syncStatus === 'synced' && <i className="fas fa-check-circle text-emerald-500 text-[10px]" title="Synced"></i>}
-                            {scan.syncStatus === 'syncing' && <i className="fas fa-circle-notch animate-spin text-sky-400 text-[10px]"></i>}
-                            {scan.syncStatus === 'error' && <i className="fas fa-exclamation-circle text-red-500 text-[10px]" title="Sync Error / Token Missing"></i>}
-                            {!scan.isCloudOnly && <button onClick={e => handleDeleteScan(String(scan.id), e)} className="w-8 h-8 rounded-full flex items-center justify-center text-slate-700 hover:text-red-500 hover:bg-red-500/10 transition-all"><i className="fas fa-trash text-xs"></i></button>}
+                            {scan.syncStatus === 'synced' && <span title="Synced" className="flex text-emerald-500"><CircleCheck size={12} /></span>}
+                            {scan.syncStatus === 'syncing' && <LoaderCircle size={12} className="animate-spin text-sky-400" />}
+                            {scan.syncStatus === 'error' && <span title="Sync Error / Token Missing" className="flex text-red-500"><CircleAlert size={12} /></span>}
+                            {!scan.isCloudOnly && <button onClick={e => handleDeleteScan(String(scan.id), e)} className="w-8 h-8 rounded-full flex items-center justify-center text-slate-700 hover:text-red-500 hover:bg-red-500/10 transition-all"><Trash2 size={14} /></button>}
                           </div>
                         </div>
                       </div>
@@ -549,7 +550,7 @@ const App: React.FC = () => {
                   )}
                   {syncUrl && (
                     <button onClick={fetchCloudData} disabled={isSyncing} className="w-full p-4 border border-dashed border-slate-800 rounded-2xl text-[10px] font-bold uppercase text-slate-500 hover:text-sky-400 hover:border-sky-500/50 transition-all flex items-center justify-center gap-2 active:scale-95 bg-slate-900/20">
-                      <i className={`fas ${isSyncing ? 'fa-circle-notch animate-spin' : 'fa-search'}`}></i>
+                      {isSyncing ? <LoaderCircle size={16} className="animate-spin" /> : <Search size={16} />}
                       {isSyncing ? 'Fetching...' : 'Load More from Cloud'}
                     </button>
                   )}
@@ -561,9 +562,9 @@ const App: React.FC = () => {
       </main>
 
       <nav className="shrink-0 bg-slate-950/90 border-t border-slate-800/50 px-4 pt-4 pb-4 flex justify-around backdrop-blur-md">
-        <button onClick={() => handleTabChange('upload')} className={`flex flex-col items-center gap-1 flex-1 transition-all active:scale-95 ${activeTab === 'upload' ? 'text-sky-400' : 'text-slate-600 hover:text-slate-400'}`}><i className="fas fa-file-upload text-lg"></i><span className="text-[8px] font-bold uppercase">Upload</span></button>
-        <button onClick={() => handleTabChange('scanner')} className={`flex flex-col items-center gap-1 flex-1 transition-all active:scale-95 ${activeTab === 'scanner' ? 'text-sky-400' : 'text-slate-600 hover:text-slate-400'}`}><i className="fas fa-camera text-lg"></i><span className="text-[8px] font-bold uppercase">Camera</span></button>
-        <button onClick={() => handleTabChange('history')} className={`flex flex-col items-center gap-1 flex-1 transition-all active:scale-95 ${activeTab === 'history' ? 'text-sky-400' : 'text-slate-600'}`}><i className="fas fa-history text-lg"></i><span className="text-[8px] font-bold uppercase">History</span></button>
+        <button onClick={() => handleTabChange('upload')} className={`flex flex-col items-center gap-1 flex-1 transition-all active:scale-95 ${activeTab === 'upload' ? 'text-sky-400' : 'text-slate-600 hover:text-slate-400'}`}><Upload size={20} /><span className="text-[8px] font-bold uppercase">Upload</span></button>
+        <button onClick={() => handleTabChange('scanner')} className={`flex flex-col items-center gap-1 flex-1 transition-all active:scale-95 ${activeTab === 'scanner' ? 'text-sky-400' : 'text-slate-600 hover:text-slate-400'}`}><Camera size={20} /><span className="text-[8px] font-bold uppercase">Camera</span></button>
+        <button onClick={() => handleTabChange('history')} className={`flex flex-col items-center gap-1 flex-1 transition-all active:scale-95 ${activeTab === 'history' ? 'text-sky-400' : 'text-slate-600'}`}><History size={20} /><span className="text-[8px] font-bold uppercase">History</span></button>
       </nav>
     </div>
   );
