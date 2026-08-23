@@ -12,14 +12,8 @@ const SYNC_TOKEN_KEY = 'qr_reader_sync_token';
 const LOCAL_LIMIT = 512;
 
 const App: React.FC = () => {
-  const [scans, setScans] = useState<ScanResult[]>(() => {
-    try {
-      const saved = localStorage.getItem(SCAN_HISTORY_KEY);
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      return [];
-    }
-  });
+  const [scans, setScans] = useState<ScanResult[]>([]);
+  const [hydrated, setHydrated] = useState(false);
 
   const [syncUrl, setSyncUrl] = useState<string>(() => localStorage.getItem(SYNC_URL_KEY) || '');
   const [syncToken, setSyncToken] = useState<string>(() => localStorage.getItem(SYNC_TOKEN_KEY) || '');
@@ -65,13 +59,27 @@ const App: React.FC = () => {
     return currentScans.filter(s => !removedIds.has(String(s.id)));
   }, []);
 
+  // Read history after the first paint so the camera preview is not queued
+  // behind a synchronous localStorage read + JSON.parse of up to LOCAL_LIMIT rows.
   useEffect(() => {
+    try {
+      const saved = localStorage.getItem(SCAN_HISTORY_KEY);
+      if (saved) setScans(JSON.parse(saved));
+    } catch (e) {
+      // Corrupt payload: start empty rather than blocking startup.
+    }
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    // Guard against overwriting stored history with the pre-hydration empty array.
+    if (!hydrated) return;
     const pruned = pruneHistory(scans);
     if (pruned.length !== scans.length) {
       setScans(pruned);
     }
     localStorage.setItem(SCAN_HISTORY_KEY, JSON.stringify(pruned));
-  }, [scans, pruneHistory]);
+  }, [scans, hydrated, pruneHistory]);
 
   const stats = useMemo(() => {
     const now = Date.now();

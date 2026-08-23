@@ -41,5 +41,16 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined;
+          if (id.includes('/react/') || id.includes('/react-dom/')) return 'react-vendor';
+          if (id.includes('/jsqr/')) return 'jsqr-vendor';
+          if (id.includes('/lucide-react/')) return 'icons-vendor';
+          return undefined;
+        },
+      },
+    },
   },
 });

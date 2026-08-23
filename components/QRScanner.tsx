@@ -9,6 +9,10 @@ declare global {
   }
 }
 
+// QR detection does not need full sensor resolution; getImageData + jsQR cost
+// scales with pixel count, so decode from a downscaled frame.
+const DECODE_MAX_WIDTH = 640;
+
 /**
  * Takes ownership of the stream opened by the inline warm-up script in
  * index.html, so camera spin-up overlaps with bundle download instead of
@@ -206,12 +210,14 @@ const QRScanner: React.FC<QRScannerProps> = ({ onScan, isActive }) => {
     if (!isActive) return;
 
     if (videoRef.current && canvasRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
+      const video = videoRef.current;
       const canvas = canvasRef.current;
-      const context = canvas.getContext('2d');
-      if (context) {
-        canvas.height = videoRef.current.videoHeight;
-        canvas.width = videoRef.current.videoWidth;
-        context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+      const context = canvas.getContext('2d', { willReadFrequently: true });
+      if (context && video.videoWidth > 0) {
+        const scale = Math.min(1, DECODE_MAX_WIDTH / video.videoWidth);
+        canvas.width = Math.round(video.videoWidth * scale);
+        canvas.height = Math.round(video.videoHeight * scale);
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
         const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
         const code = jsQR(imageData.data, imageData.width, imageData.height, {
           inversionAttempts: 'dontInvert',
