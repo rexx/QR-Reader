@@ -54,8 +54,10 @@ Service Worker 提供的不是「快取」（那本來就有），而是**可程
 | `cdn.tailwindcss.com`（同步 `<script>`） | Tailwind v4 本地建置（`@tailwindcss/vite`） | [vite.config.ts](../vite.config.ts)、[styles.css](../styles.css) |
 | Font Awesome CDN CSS | `lucide-react`（31 處圖示，純 SVG 無 webfont） | [App.tsx](../App.tsx)、[components/QRScanner.tsx](../components/QRScanner.tsx) |
 | Google Fonts `@import` | system font stack（零字型請求） | [styles.css](../styles.css) |
-| inline gtag `<script>` | production + online 才動態載入 | [services/analyticsService.ts](../services/analyticsService.ts) |
+| gtag `<script async>` | production + online 才動態載入（見下方說明） | [services/analyticsService.ts](../services/analyticsService.ts) |
 | esm.sh `importmap` | 刪除（Vite 已 bundle，這段是 AI Studio scaffold 的死碼） | [index.html](../index.html) |
+
+**阻擋性與外部性是兩件事。** 上表只有前三項是阻擋性的。gtag 原本就帶 `async`，不阻塞 parsing 也不阻塞首次繪製；它跨 origin，不會被 SW 的 same-origin 規則攔到；inline shim 讓離線時 `gtag()` 只是往陣列堆東西不會 throw。**它本身不會讓離線冷啟動退化。** 改成動態載入是額外收斂（離線時完全不發請求、不跟首屏搶頻寬），不是修 bug。反過來說也不要把「`index.html` 裡有 gtag」本身當成離線問題——那會讓人拿這條去反對無害的寫法。
 
 Tailwind Play CDN 有一段成本快取救不了：它是把 JIT compiler 塞進瀏覽器，**每次啟動**都要執行 JS、掃 DOM、產生 CSS。改本地建置後這段主執行緒工作直接歸零，不再跟 React 首次 render 與相機初始化搶主執行緒。
 
@@ -134,7 +136,13 @@ iOS Safari 對 Service Worker 與 `getUserMedia` 都要求 secure context。`loc
 
 處理方式：刪除舊的主畫面 app → Safari 重開正式網址 → 重新加入主畫面 → 上線開一次後再測離線。
 
-### 5.3 `viewport-fit=cover` 目前不要開
+### 5.3 透明線稿 icon 可能在主畫面上看不見
+
+iOS 會從 icon 自身的顏色反推底色。**淺色低飽和的透明線稿**會拿到淺色底，整個 icon 在主畫面上幾乎消失——build 輸出正常、透明度檢查也會通過，只有真機看得出來。
+
+QR Reader 目前不受影響：icon 是滿版不透明深色圖（不透明像素 100%、平均飽和度 0.623、平均明度 0.239），沒有底色生成的餘地。這條是給之後若改成透明線稿時的提醒，屆時建議量一下不透明像素的平均飽和度，低於 0.5 要小心。
+
+### 5.4 `viewport-fit=cover` 目前不要開
 
 沿用 Cozy Pocket 的結論。iOS standalone 模式下容易連動出現頂部區塊偏移、safe-area 行為不符預期、overlay 與狀態列重疊。
 
@@ -146,7 +154,11 @@ iOS Safari 對 Service Worker 與 `getUserMedia` 都要求 secure context。`loc
 
 - `npm run build && npm run preview`（注意網址是 `http://localhost:4173/QR-Reader/`，`base` 已改）
 - Service Worker 只在 production build 啟用，`npm run dev` 不會有
-- DevTools Network 面板確認首屏沒有任何第三方 origin 請求
+- 確認首屏沒有**阻擋繪製**的外部依賴。真正的不變式是「不阻塞」，不是「零外部 origin」——URL grep（`curl | grep -oE 'https?://'`）分辨不出 `<script async>` 與 `<script src>`，兩者在文字上都只是一個外部 URL。要看的是載入語意，會擋的有三種形態：
+  - `<script src>` 沒帶 `async` / `defer`
+  - `<link rel="stylesheet">` 指向外部
+  - inline `<style>` 裡的 `@import url(...)`（最隱蔽，要 CSS parse 完才被發現）
+- 驗收條件要雙向驗：不只驗現況會過，也要塞一個上述形態進去確認它真的會被擋下來
 
 ### 6.2 線上首次安裝
 
