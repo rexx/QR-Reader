@@ -20,7 +20,7 @@ React 19、TypeScript、Vite 6、Tailwind CSS v4、lucide-react、jsQR、vite-pl
 
 ## 3. 本機開發
 
-**前置需求**：Node.js 20 以上（CI 使用 22）。
+**前置需求**：Node.js 24 以上，與 CI 一致（`.nvmrc` 有釘）。
 
 ```bash
 npm install
