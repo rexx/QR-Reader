@@ -540,7 +540,7 @@ const App: React.FC = () => {
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600" />
                     <input type="text" placeholder="Search history..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 pl-9 pr-4 text-sm outline-none focus:border-sky-500/50 transition-all text-white" />
                   </div>
-                  <button onClick={() => setIsStatsExpanded(!isStatsExpanded)} className={`w-10 h-10 rounded-xl border transition-all active:scale-95 ${isStatsExpanded ? 'bg-sky-500 border-sky-400 text-white' : 'bg-slate-900 border-slate-800 text-slate-500'}`}><ChartColumn size={14} /></button>
+                  <button onClick={() => setIsStatsExpanded(!isStatsExpanded)} className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all active:scale-95 ${isStatsExpanded ? 'bg-sky-500 border-sky-400 text-white' : 'bg-slate-900 border-slate-800 text-slate-500'}`}><ChartColumn size={14} /></button>
                 </div>
                 {isStatsExpanded && (
                   <div className="px-4 mb-4 grid grid-cols-4 gap-2 bg-slate-900/50 p-3 rounded-2xl border border-slate-800 mx-4 animate-in slide-in-from-top-2">
