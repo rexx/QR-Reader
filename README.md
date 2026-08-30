@@ -2,7 +2,7 @@
 
 以相機即時掃描 QR code 的 PWA，掃描與歷史完全在本機運算，網路只用於選配的 Google Sheets 同步。
 
-線上版本：<https://rexx.github.io/QR-Reader/>
+線上版本：<https://rexx.github.io/qr-reader/>
 
 ## 1. 功能
 
@@ -36,7 +36,7 @@ npm run preview
 
 兩個容易踩到的地方：
 
-- **預覽網址是 `http://localhost:4173/QR-Reader/`**，不是根路徑。`base` 對齊 GitHub Pages 的子路徑部署，本機預覽也跟著走這個前綴。
+- **預覽網址是 `http://localhost:4173/qr-reader/`**，不是根路徑。`base` 對齊 GitHub Pages 的子路徑部署，本機預覽也跟著走這個前綴。
 - **Service Worker 只在 production build 啟用。** `npm run dev` 不會註冊 SW，所以離線行為一律要用 `npm run preview` 驗。
 
 要在 iPhone 上測試，注意 iOS Safari 對 Service Worker 與 `getUserMedia` 都要求 secure context。`localhost` 是例外，但 LAN IP 走 HTTP 不算——`http://192.168.x.x:4173/` 只能看版面，相機不會動、SW 也不會註冊。需要真憑證時用 tunnel（例如 `cloudflared tunnel --url http://localhost:4173`）或直接部署上去測。
@@ -49,9 +49,9 @@ npm run preview
 
 | 位置 | 值 |
 |---|---|
-| `vite.config.ts` 的 `base` | `/QR-Reader/` |
-| `public/manifest.json` 的 `id` / `start_url` / `scope` | `/QR-Reader/` |
-| `public/manifest.json` 的 icon `src` | `/QR-Reader/...` |
+| `vite.config.ts` 的 `base` | `/qr-reader/` |
+| `public/manifest.json` 的 `id` / `start_url` / `scope` | `/qr-reader/` |
+| `public/manifest.json` 的 icon `src` | `/qr-reader/...` |
 
 ## 5. 離線行為
 

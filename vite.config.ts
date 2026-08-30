@@ -30,7 +30,7 @@ export default defineConfig({
       },
     }),
   ],
-  base: '/QR-Reader/',
+  base: '/qr-reader/',
   build: {
     outDir: 'dist',
     assetsDir: 'assets',

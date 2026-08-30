@@ -73,11 +73,11 @@ Tailwind Play CDN 有一段成本快取救不了：它是把 JIT compiler 塞進
 
 ### 3.3 base、manifest、icon 路徑必須三邊一致
 
-部署在 GitHub Pages 子路徑 `https://rexx.github.io/QR-Reader/`。不一致的症狀很有迷惑性：icon 正常、app 裝得起來，但離線冷啟動打到錯誤 URL。
+部署在 GitHub Pages 子路徑 `https://rexx.github.io/qr-reader/`。不一致的症狀很有迷惑性：icon 正常、app 裝得起來，但離線冷啟動打到錯誤 URL。
 
-- `vite.config.ts` 的 `base: '/QR-Reader/'`
-- `public/manifest.json` 的 `id` / `start_url` / `scope` 皆為 `/QR-Reader/`
-- icon `src` 用絕對路徑 `/QR-Reader/xxx.png`
+- `vite.config.ts` 的 `base: '/qr-reader/'`
+- `public/manifest.json` 的 `id` / `start_url` / `scope` 皆為 `/qr-reader/`
+- icon `src` 用絕對路徑 `/qr-reader/xxx.png`
 
 ### 3.4 離線時保留掃描流程，網路功能降級
 
@@ -126,7 +126,7 @@ Offline badge 放在 header 標題旁邊，不覆蓋取景框、不做全畫面 
 
 ### 5.1 本機測試需要 secure context
 
-iOS Safari 對 Service Worker 與 `getUserMedia` 都要求 secure context。`localhost` 是例外，**LAN IP 走 HTTP 不算**——`http://192.168.x.x:4173/QR-Reader/` 只能驗版面，相機不會動、SW 也不會註冊。
+iOS Safari 對 Service Worker 與 `getUserMedia` 都要求 secure context。`localhost` 是例外，**LAN IP 走 HTTP 不算**——`http://192.168.x.x:4173/qr-reader/` 只能驗版面，相機不會動、SW 也不會註冊。
 
 要在 iPhone 上完整測試，需要真憑證：用 tunnel（`cloudflared tunnel --url http://localhost:4173`）或直接部署上去測。
 
@@ -166,7 +166,7 @@ iOS Safari 對 Service Worker 與 `getUserMedia` 都要求 secure context。`loc
 
 ### 6.1 本機
 
-- `npm run build && npm run preview`（注意網址是 `http://localhost:4173/QR-Reader/`，`base` 已改）
+- `npm run build && npm run preview`（注意網址是 `http://localhost:4173/qr-reader/`，`base` 已改）
 - Service Worker 只在 production build 啟用，`npm run dev` 不會有
 - 確認首屏沒有**阻擋繪製**的外部依賴。真正的不變式是「不阻塞」，不是「零外部 origin」——URL grep（`curl | grep -oE 'https?://'`）分辨不出 `<script async>` 與 `<script src>`，兩者在文字上都只是一個外部 URL。要看的是載入語意，會擋的有三種形態：
   - `<script src>` 沒帶 `async` / `defer`
