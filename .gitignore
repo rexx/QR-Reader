@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local reference material: predecessor snapshot, sample QR images,
+# and one-off history export tooling. Not part of the build.
+local-reference
